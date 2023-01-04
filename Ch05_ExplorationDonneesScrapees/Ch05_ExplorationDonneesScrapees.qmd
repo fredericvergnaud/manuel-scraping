@@ -1,0 +1,738 @@
+---
+editor: 
+  markdown: 
+    wrap: sentence
+---
+
+# Explorer les publications de la revue Population avec R.temis {#sec-exploration-donnees-scrapees .unnumbered}
+
+Dans cette partie, nous illustrons l'application de la statistique textuelle sur les données scrapées du site de la revue Population.
+
+Dans un premier temps, nous allons *affecter* ou réaffecter des publications à certaines rubriques selon la présence ou non de mots contenus dans les titres (ex préface) puis nous utiliserons des fonctions du paquet R.temis pour *repérer* la langue de la publication.
+
+Nous selectionnerons ensuite les articles ou assimilés dont les titres sont en français pour *explorer* les *champs lexicaux* ou des *spécificités* des titres de ces publications...
+
+## Données scrapées
+
+A l'issue du premier nettoyage des données scrappées, le fichier à analyser contient 9484 publications.
+
+Pour chacune, on dispose des informations suivantes :
+
+-   le titre de la publication,
+-   une liste de mots-clés,
+-   le résumé,
+-   le(s) nom(s) des auteurs,
+-   l'année de publication (de 1946 à 2021),
+-   le type de rubrique (renseigné ou non),
+-   le numéro de volume
+
+Les *titres*, *résumés* ou les séries de *mots-clés* sont composés de quelques mots.
+On va considérer ces données comme des *variables textuelles* et les autres variables comme des *métadonnées*.
+
+D'autres métadonnées ont été crées en amont :
+
+-   sexe de(s) auteur(s) par la combinaison des sexes des auteurs i.e « Mixte » si un homme et une femme sont co auteurs.
+-   nombre d'auteurs,
+-   période de la publication (par décennies)
+-   type de rubrique "nettoyée"
+
+## Paquets R nécessaires
+
+```{r paquets, message=FALSE, warning=FALSE}
+#Appel de packages nécessaires
+library(dplyr)
+library(questionr)
+library(tidyverse)
+library(DescTools)
+library(R.temis)
+#Mémoriser la version des packages utilisés 
+# sessionInfo()
+```
+
+Nous utilisons les fonctions du paquet *R.temis* dont le principe est de faciliter les étapes essentielles de l'analyse textuelle en s'appuyant sur les paquets existants dans R d'exploration des données textuelles ou qualitatives (tm, FactoMineR, explor, igraph, Shiny..).
+
+## Importation du fichier, premières sélection de variables
+
+```{r datascrap}
+#| class.output: output
+# Importation du fichier dans R
+data <- read.csv("2021_06_dataframe_population_propre.csv", encoding="UTF-8", sep="", stringsAsFactors=TRUE)
+
+#Sélection des colonnes d'intérêt 
+dataPop <- select(data,titre,resume,mots.clefs,mots.clefs_nb,auteurs,Auteurs_sexes, auteurs_nb,Annee,Volume,Numero,Periode,rubrique_net1)
+
+#Conversion des textes de la colonne "titre" dn minuscules et suppression des "\\."
+dataPop$titre <- str_to_lower(dataPop$titre) %>% str_replace_all("\\.", "")
+
+#Création d'un identifiant pour chaque publication
+dataPop = dataPop %>% mutate(ident=row_number())
+```
+
+## Quelques statistiques sur les publications scrappées
+
+```{r explordatascrap}
+#| class.output: output
+# Comptage des publications par type de rubriques initiales
+knitr::kable(freq(dataPop$rubrique_net1,sort = "dec"), caption = "par type")
+
+# Comptage des publications par Période
+knitr::kable(freq(dataPop$Periode),caption = "par période")
+```
+
+On remarque une grande variété d'intitulés de rubriques utilisées pour classer les publications et aussi une évolution de ces classements selon les périodes de parution.
+
+Pour appliquer la statistique textuelle, nous conserverons des publications de même nature et pour cette application les *articles ou assimilés*.
+
+Il faut alors préalablement procéder à des regroupement ou affecter des publications à des rubriques quand cette information était manquante.
+
+## Reclassement de publications dans les rubriques
+
+Une consultation auprès des éditrices de la revue Population nous a aidé à faire des regroupements ou reclassements de publications selon leur titre ou contenus dans des rubriques plus cohérentes.
+
+On va ainsi regrouper les publications affectées aux rubriques "analyses critiques et/ou comptes rendus" ou "bibliographie" dans une seule appelée *recension*.
+On affecte à la rubrique *article*, les publications classées en "législation", "politique familiale", "prix jeune auteur.e", "anniversaire", "démographie", "enquêtes/études" ou "methodologie"....
+
+On crée également une catégorie *autres* pour y classer les publications affectées aux rubriques "congrès", "présentation" ou "hommage".
+
+### Regroupement de rubriques selon leurs intitulés
+
+```{r recodrubriques}
+#| class.output: output
+# Transformation de la variable "rubrique" en variable caractère
+dataPop$rubrique_net <- as.character(dataPop$rubrique_net1)
+
+dataPop0 <- dataPop %>%
+mutate(rubrique_net = case_when(
+rubrique_net == "analyses critiques et/ou comptes rendus" ~ "recensions",
+rubrique_net == "bibliographie" ~ "recensions",
+rubrique_net == "congrès" ~ "autres",
+rubrique_net == "présentation" ~ "autres",
+rubrique_net == "hommage" ~ "autres",
+rubrique_net == "législation" ~ "article",
+rubrique_net == "politiques familiales" ~ "article",
+rubrique_net == "prix jeune auteur·e" ~ "article",
+rubrique_net == "anniversaire" ~ "article",
+rubrique_net == "démographie" ~ "article",
+rubrique_net == "enquêtes/études" ~ "article",
+rubrique_net == "methodologie" ~ "article",
+rubrique_net == "rapport sur la situation démographique de" ~ "article",
+rubrique_net == "la conjoncture démographique" ~ "article",
+rubrique_net == "notes de recherche et documents" ~ "article",
+rubrique_net == "chronique" ~ "article",
+     TRUE ~ rubrique_net
+     ))
+```
+
+```{r}
+#| class.output: output
+# Nouveau comptage des rubriques après regroupements
+knitr::kable(freq(dataPop0$rubrique_net,sort = "dec"), caption = "Publications par type après reclassement des rubriques")
+```
+
+### Reclassement de rubriques selon les mots contenus dans les titres
+
+En **repérant certains mots ou signes** dans les titres, on va *classer* des publications qui n'ont pas été affectées à des rubriques ou *reclasser* des publications dans des rubriques plus adaptées.
+
+Par exemple, on repère les publications dont les titres comportent un " - " comme : "gourdon v - histoire des grands-parents" car c'est ainsi qu'on écrit le titres d'une recenssion.
+On va les classer dans la rubrique "recensions".
+
+On va aussi classer les publications dont les titres sont par exemple "notes", "avant-propos", "introduction", "presentation", "préface" ou "annexe(s)" dans une nouvelle rubrique que nous applelons *article_non*.
+
+```{r reclass}
+#| class.output: output
+dataPop00 <- dataPop0 %>%
+mutate(rubrique_net=ifelse((titre %like% c("%notes%","%avant-propos%","%avant-propos %", "%introduction%", 
+"% présentation%","% présentation %", "%préface%","%annexe%", "%annexes%","%annexe %", "%annexes %",
+"%à nos lecteurs%","%editorial%","%hommage %","%présentation %","%présentation%","%préface %", "%commentaire%", "%faits et problèmes du jour%", "%données statistiques%","%additif%","%compte rendu %","%comptes rendus %",
+"%errata%", "%erratum%","%informations%", "%remerciements%","%sommaire %", "%sommaires %","%contents%",
+"%avant propos%", "%note liminaire%")) ,"article_non",rubrique_net)) %>%    
+  
+mutate(rubrique_net=ifelse((titre %like% 
+c("%la conjoncture démographique%","%la situation démographique%", "%législation%") & rubrique_net == ""),"article_non",rubrique_net)) %>%
+  
+mutate(rubrique_net=ifelse(titre %like% c("% — %","% —%","%bibliographie%", "%bibliographie critique%", "%informations bibliographiques%"),"recensions",rubrique_net)) %>%  
+
+mutate(rubrique_net=ifelse((titre %like% c("%chronique de l'immigration%", "%chronique de l'immigration %","%chronique de l'a%","%chronique de conjoncture%","% les kel kummer%","%a propos %","%à propos de%") & rubrique_net == ""), "article",rubrique_net))
+```
+
+#### Nouvelle répartition des publications après ces nouveaux regroupements de rubriques
+
+```{r}
+#| class.output: output
+# 
+knitr::kable(freq(dataPop00$rubrique_net,sort = "dec"), caption = "Publications par type après reclassement selon les titres")
+```
+
+### Regroupement de modalités de la variables nombre d'auteurs
+
+On crée une nouvelle variable à partir de la variable "nombre d'auteurs" pour en créer une plus synthétique avec une modalité "plus de 4 auteurs".
+
+```{r newnbaut}
+#| class.output: output
+#table(dataPop00$auteurs_nb)
+
+#class(DataPop_T$auteurs_nbs)
+dataPop00 <- dataPop00 %>%
+   mutate(auteurs_nbs=as.character(auteurs_nb))  %>%
+   mutate(auteurs_nbs= case_when (
+     auteurs_nbs == "4" ~ "4+",
+     auteurs_nbs == "5" ~ "4+",
+     auteurs_nbs == "6" ~ "4+",
+     auteurs_nbs == "7" ~ "4+",
+     auteurs_nbs == "8" ~ "4+",
+         TRUE ~ auteurs_nbs
+     ))
+     
+#table(dataPop00$Periode)
+dataPop00$Periode <- dataPop00$Periode %>%
+  fct_recode("(1946,1950]"	= "[1946,1950]")     
+
+```
+
+### Suppression de certaines publications
+
+On enlève du fichier d'analyse les publications de type *recension* et celles que l'on a identifiées comme n'étant pas des articles *article_non*.
+On décide également de ne garder que les publications pour lesquelles figure le.s nom.s d'auteur ou au moins des initiales.
+
+```{r del_rubriques}
+#| class.output: output
+dataPop1=  dataPop00 %>%
+  filter(rubrique_net != "recensions") %>%
+  filter(rubrique_net != "article_non") %>%
+  filter(auteurs_nbs != 0) 
+```
+
+On ne garde maintenant que *4564 publications* au lieu des 9484 scrappées initialement.
+
+## Repérer les publications en langue étrangère
+
+On a gardé les publications de type "article" ou assimilé.
+
+On cherche maintenant à conserver uniquement les articles dont les titres sont en français.
+
+Comme on ne dispose pas de variable "langue de la publication" dans les données scrappées, on utilise la statistique textuelle pour de repérer automatiquement des mots en anglais, allemand, espagnol ou italien dans les titres.
+On a fait le choix de ces langues car identifiées comme les plus courantes ici.
+
+On va constituer une liste de mots en langue étrangère qui, s'ils sont utilisés dans les titres des publications, permettra de définir que la langue n'est pas le français.
+Cela sera une nouvelle variable *langue* (en 2 modalité nofr ou fr) qu'on pourra affecter à chaque publication.
+
+On fera également attention à ne pas garder des mots qui sont communs au français et à au moins une de ces 3 langues comme par exemple "un", "on", ....
+
+### Utiliser les mot-outils
+
+```{r reperage_}
+#| class.output: output
+# On crée une liste contenant les mots-outil pour chacune des langues (anglais, allemand, espagnol ou italien)
+stopwd_en <- stopwords("en")
+stopwd_ger <- stopwords("ger")
+stopwd_spa <- stopwords("spa")
+stopwd_ita <- stopwords("ita")
+
+# On crée une liste unique pour ces 4 langues
+stopwd_etr <- c(stopwd_en, stopwd_ger, stopwd_spa, stopwd_ita)
+
+# Crée une nouvelle liste en ajoutant un "% " entre les mots ce qui nous permettra de rechercher uniquement ces mots et pas des chîne de caractères contenant ces mots.
+stopwd_etr2=paste0("% ",stopwd_etr," %")
+
+# On crée une liste contenant les mots-outils du français
+stopwd_fr <- stopwords("fr")
+stopwd_fr2=paste0("% ",stopwd_fr," %")
+
+# On enlève les mots-outils communs entre l'anglais, l'allemand, l'espagnol et l'italien et le français
+stopwd_etr3 = setdiff(stopwd_etr2,stopwd_fr2)
+
+
+# On liste les mots mixtes entre le français et les mots outils et on les enleve de la liste des mots étrangers 
+stopwd_mix <- c("% an %","% a %","% but %","% or %",
+                "% entre %","% ni %","% si %", "% in %",
+                "% sein %", "% seine %", "% entre %", 
+                "% facto %", "% non %", "% i %","% hier %",
+                "% du %","% ours %", "% des %", 
+                "% l %", "% c %", "% ma %") 
+
+stopwd_etr4  = setdiff(stopwd_etr3,stopwd_mix)
+
+
+```
+
+Attention : a enlever la rubrique intitulée *L'âge d'or de l'Arithmétique politique française* "% sein %" Enlever certain avec identifiant et vous pb au sein ...
+
+### Utiliser le vocabulaire de la démographie en langue étrangère
+
+On ajoute à notre liste des "mots étrangers" des mots récurrents dans les titres des publications en démographie qui ne sont pas des mots-outils (ex . demography).
+
+```{r sel_francais}
+#| class.output: output
+
+# Liste des mots étrangers identifiés
+
+wd_nofr <- c("%the %","%what %","%which %","%why %",
+                 "%world %","% demography %","% study %", 
+                 "% problems %","% groups %","% mapping %",
+                 "% problems%","% fertility %","% demography%",
+                 "% study%", "% fertility%","% historical %",
+                 "% family %","% research %", "% family%",
+                 "% research%","% children%",
+                 "% historich %","% jahre %",
+                 "% demografia %")
+
+stopwd_nofr2= c(stopwd_etr4,wd_nofr) 
+
+
+# On crée un nouveau fichier avec cette variable "langue" remplie selon que le titre contienne ou non au moins un de mots "étrangers" 
+
+dataPop2 <- dataPop1 %>%
+  mutate(langue=ifelse(titre %like% stopwd_nofr2,
+                       "no_fr","fr"))	%>%
+  select(ident,langue)
+
+# Répartition des publications selon le langue utilisée dans le titre
+freq(dataPop2$langue)
+```
+
+On a pu ainsi enlever plus de 300 titres.
+
+## Garder les publications en français
+
+On va ajouter la variable "langue" au tableau de données qui permettra de selectionner les titres en français.
+
+On fait une correction à la marge pour certains titres à l'aide de leur numéro d'identifiant.
+Par exemple la publication 298 a pour titre "Incohérence du nombre d'enfants déclarés entre les vagues de l'enquête française generations and gender survey" car seul le nom de l'enquête citée qui est en anglais.
+
+```{r join}
+#| class.output: output
+# Jointure entre la table initiale et la table contenant la variable "langue"
+dataPop3 <- dataPop1 %>% left_join (dataPop2,by ="ident") 
+
+# Correction de la variable pour certaines publications 
+dataPop3 <- dataPop3 %>%
+mutate(langue=ifelse((ident %like% c("298","9008")) ,"fr",langue)) 
+
+```
+
+Selection des publications dont le titre est en français
+
+```{r sel_fra}
+#| class.output: output
+#freq(dataPop3$langue)
+dataPop_tit_fra <- dataPop3 %>% filter(langue == "fr")
+#dataPop_tit_etr <- dataPop3 %>% filter(langue == "no_fr")
+```
+
+On va donc garder *4247 publications* sur les 9484 initialement.
+
+## Statistiques sur des publications retenues
+
+```{r explordata}
+#| class.output: output
+knitr::kable(freq(dataPop_tit_fra$rubrique_net),sort = "dec", caption = "Répartition par type de rubrique") 
+
+knitr::kable(freq(dataPop_tit_fra$Periode),sort = "dec", caption = "par période") 
+
+knitr::kable(freq(dataPop_tit_fra$Auteurs_sexes),sort = "dec", caption = "par genre") 
+
+knitr::kable(freq(dataPop_tit_fra$auteurs_nbs),sort = "dec", caption = "par nombre d'auteurs") 
+
+knitr::kable(table(dataPop_tit_fra$rubrique_net,dataPop_tit_fra$Periode),caption = "par rubrique et periode")
+
+knitr::kable(table(dataPop_tit_fra$rubrique_net, dataPop_tit_fra$auteurs_nbs),caption = "par type de rubrique et par nombre d'auteurs")
+
+```
+
+## Réécriture de certains mots dans les titres
+
+On va par exemple réécrire les sigles en enlevant les ponctuations (ex u.r.s.s) ou les mots-composés (états-unis) car on supprime les ponctualtions en statistique textuelle.
+
+```{r reecr}
+#| class.output: output
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("états-unis", "étatsunis")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("etats-unis", "étatsunis")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("u.r.s.s", "urss")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("i.n.e.d", "ined")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all(" u.s", " étatsunis")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("union soviétique", "urss")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("union européenne", "unioneuropéenne")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("institut national d'études démographiques", "ined")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("république démocratique du congo", "rdc")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("république démocratique allemande", "rda")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("république tchèque", "republiquetcheque")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("république fédérale d'allemagne", "rfa")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("république fédérale allemande", "rfa")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("république arabe unie", "républiquearabeunie")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("xxie siècle", "xxe_siècle")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("xxe siècle", "xxe_siècle")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("xixe siècle", "xixe_siècle")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("xviiie siècle", "xviiie_siècle")
+
+dataPop_tit_fra$titre <- str_to_lower(dataPop_tit_fra$titre) %>%
+  str_replace_all("xvie siècle", "xvie_siècle")
+
+```
+
+On exporte le fichier pour l'importer ensuite dans R.temis qui permettra de construire le tableau lexical associé au corpus.
+
+```{r export_sel}
+#| class.output: output
+write.csv(dataPop_tit_fra,"titres_fr.csv", row.names = TRUE)
+```
+
+## Analyse textuelle du corpus des titres des articles de Population
+
+La *variable textuelle* (ici titre des publications) est en 2e colonne du tableau de données ; les autres colonnes sont les *métadonnées* (variables qualitatives).
+
+```{r Import_titres}
+#| class.output: output
+# On crée l'objet corpus à partir du tableau qui est au format csv et on précise que celui-ci ets en français.
+corpus <- import_corpus("titres_fr.csv", format="csv",textcolumn = 2, language="fr")
+corpus
+```
+Corpus et métadonnées sont importés dans r.
+
+
+### Premier tableau lexical associé aux titres
+
+#### Lexique sans mots outils ni chiffres
+
+On transforme le corpus en  *tableau lexical* (objet *DocumentTermMatrix* de r). C'est un tableau comportant en lignes les unité textuelles (ici les titres) et en colonne les différents mots utilisés dans les titres. Les cases de ce tableau sont essentiellement remplies de 0, sauf quand le mot est présent dans le titre.
+
+```{r dtm1}
+#| class.output: output
+# On construit les tableau lexical en supprimant les mots-outils et les chiffres car on ne souhaite pas les utiliser dans les analyses.
+dtm_t <- build_dtm(corpus, remove_stopwords = T, remove_numbers = T)
+dtm_t
+```
+
+Les mots de une lettre sont également éliminés automatiquement.
+
+Les lignes du *tableau lexical* (dtm) correspondent ici aux 4247 titres en français et les colonnes aux 4892 mots différents utilisés dans les titres.
+
+On affiche les 20 mots les plus fréquents dans les titres
+
+```{r}
+#| class.output: output
+frequent_terms(dtm_t, n=20)
+```
+
+#### Suppression de mots du lexique (au choix)
+
+On a créé un premier *lexique* qui rassemble les mots distincts du corpus des titres. On a déjà décider de ne pas y retenir chiffres ni les mots-outils. Les mots de une lettre sont également supprimés automatiquement.
+On peut supprimer des mots "au choix" comme par exemple les chiffres romains.
+
+Avant de les enlever, on en vérifie l'usage dans les titres en regardant ses `concordances`. 
+Les *concordances* permettent, pour un mot choisit, de rassembler l'ensemble des unités de textes (ici les titres) dans lesquels il apparaît.
+
+On décide d'éliminer certains mots.
+On en fait une liste qu'on supprime du lexique ( ici des numéros de rubriques).
+
+```{r conc1}
+#| class.output: output
+concordances(corpus, dtm_t, "séance")
+#concordances(corpus, dtm_t, "entre")
+```
+
+
+```{r lex_net1}
+#| class.output: output
+dic_t <- dictionary(dtm_t)
+asupp <- c( "ii","iii","iv","v","vi","xvii","xvii", "xix", "entre", "séance", "depuis")
+                  
+dic_t2 <- dic_t[!rownames(dic_t) %in% asupp,]
+```
+
+#### Lemmatisation automatique à l'aide d'une base de données lexicale (Lexique 3)
+
+L'opération de *lemmatisation* permet ici de :
+
+- identifier les catégories grammaticales des mots,
+- regrouper des mots qui ont une signification proche : les verbes conjugués à la forme infinitive, les formes plurielles au singulier, les adjectifs du féminin au masculin qui seront appelés "Terms".
+- selectionner pour l'analyse uniquement certaines catégories de mots ainsi que des mots non reconnus par le lemmatiseur (cas de mots propores à certaines disciplines par exemple).
+
+Cette opération permet de *réduire* le nombre de mots de lexique.
+
+```{r lemm1}
+#| class.output: output
+# Importation du lexique 
+lexique3 <- read.csv("Lexique383_simplifie.csv", fileEncoding="UTF-8")
+lexique3 <- arrange(lexique3, desc(freqlivres))
+lexique3 <- lexique3[!duplicated(lexique3$ortho),]
+# Selection des adverbes, verbes, adjectifs et noms propres
+voc_actif <- lexique3[lexique3$cgram %in% c("ADV", "VER", "ADJ", "NOM"),]
+dic_total_t <- merge(dic_t2, voc_actif, by.x="row.names", by.y="ortho", all.x=TRUE)
+dic_total_t <- mutate(dic_total_t, Term=coalesce(lemme, Term))
+rownames(dic_total_t) <- dic_total_t$Row.names
+
+# Lister les mots non reconnus par le lexique (pour vérification si besoin)  
+#nr <- filter(dic_total_t, is.na(lemme))
+```
+
+#### Correction ou complétion de la lemmatisation
+
+La lemmatisation automatique a remplacé les "mots" par leur racine. Ainsi par exemple *france* a été remplacé par *franc*. 
+
+Il convient alors de corriger cette lemmatisation faire avec le lemmatiseur (ici `dic_total_t`) en en créant un autre (`dicor`) contenant dans une nouvelle colonne les mots *à corriger* (`Term`).
+
+```{r lemm2}
+#| class.output: output
+
+#concordances(corpus, dtm_t, "evolution")
+
+dicor <- dic_total_t
+# View(dicor)
+dicor$Term[dicor$Term == "aages"] <- "ages"
+dicor$Term[dicor$Term == "europ"] <- "europe"
+dicor$Term[dicor$Term == "franc"] <- "france"
+dicor$Term[dicor$Term == "afriqu"] <- "afrique"
+dicor$Term[dicor$Term == "ital"] <- "italie"
+dicor$Term[dicor$Term == "alger"] <- "algérie"
+dicor$Term[dicor$Term == "espagn"] <- "espagne"
+dicor$Term[dicor$Term == "etud"] <- "étude"
+dicor$Term[dicor$Term == "tunis"] <- "tunisie"
+dicor$Term[dicor$Term == "démograph"] <- "démographe"
+dicor$Term[dicor$Term == "ae"] <- "aes"
+dicor$Term[dicor$Term == "asi"] <- "asie"
+dicor$Term[dicor$Term == "pologn"] <- "pologne"
+dicor$Term[dicor$Term == "hongr"] <- "hongrie"
+dicor$Term[dicor$Term == "russ"] <- "russie"
+dicor$Term[dicor$Term == "sahar"] <- "sahara"
+dicor$Term[dicor$Term == "autrich"] <- "autriche"
+dicor$Term[dicor$Term == "mexiqu"] <- "mexique"
+dicor$Term[dicor$Term == "rouman"] <- "roumanie"
+dicor$Term[dicor$Term == "dispar"] <- "	disparité"
+dicor$Term[dicor$Term == "ancrag"] <- "ancrage"
+dicor$Term[dicor$Term == "appari"] <- "appariement"
+dicor$Term[dicor$Term == "antill"] <- "antilles"
+dicor$Term[dicor$Term == "austral"] <- "australie"
+dicor$Term[dicor$Term == "autonomis"] <- "autonomisation"
+dicor$Term[dicor$Term == "bioéthiqu"] <- "bioéthique"
+dicor$Term[dicor$Term == "biopolit"] <- "biopolitique"
+dicor$Term[dicor$Term == "birman"] <- "birmanie"
+dicor$Term[dicor$Term == "bretagn"] <- "bretagne"
+dicor$Term[dicor$Term == "burkin"] <- "burkina"
+dicor$Term[dicor$Term == "cherchel"] <- "cherchell"
+dicor$Term[dicor$Term == "cinqu"] <- "cinquante"
+dicor$Term[dicor$Term == "colomb"] <- "colombie"
+dicor$Term[dicor$Term == "écrou"] <- "écroué"
+dicor$Term[dicor$Term == "égypt"] <- "égypte"
+dicor$Term[dicor$Term == "enquêt"] <- "enquête"
+dicor$Term[dicor$Term == "érfi"] <- "erfi"
+dicor$Term[dicor$Term == "etat"] <- "état"
+dicor$Term[dicor$Term == "evolu"] <- "évolution"
+dicor$Term[dicor$Term == "évolu"] <- "evolution"
+dicor$Term[dicor$Term == "surmortal"] <- "surmortalité"
+dicor$Term[dicor$Term == "gend"] <- "gender"
+dicor$Term[dicor$Term == "gener"] <- "génération"
+dicor$Term[dicor$Term == "génes"] <- "genèse"
+dicor$Term[dicor$Term == "genr"] <- "genré"
+dicor$Term[dicor$Term == "gg"] <- "ggs"
+dicor$Term[dicor$Term == "guadeloup"] <- "guadeloupe"
+dicor$Term[dicor$Term == "hor"] <- "hors"
+dicor$Term[dicor$Term == "ile"] <- "île"
+dicor$Term[dicor$Term == "immigrer"] <- "immigré"
+dicor$Term[dicor$Term == "inégalit"] <- "inégalité"
+dicor$Term[dicor$Term == "interact"] <- "interactif"
+dicor$Term[dicor$Term == "island"] <- "islande"
+dicor$Term[dicor$Term == "législ"] <- "législation"
+dicor$Term[dicor$Term == "maf"] <- "mafe"
+dicor$Term[dicor$Term == "martin"] <- "martinique"
+dicor$Term[dicor$Term == "masculinis"] <- "masculinisation"
+dicor$Term[dicor$Term == "mayott"] <- "mayotte"
+dicor$Term[dicor$Term == "méthodolog"] <- "méthodologique"
+dicor$Term[dicor$Term == "métropolis"] <- "métropolisation"
+dicor$Term[dicor$Term == "mobil"] <- "mobilité"
+dicor$Term[dicor$Term == "modeler"] <- "modèle"
+dicor$Term[dicor$Term == "moldav"] <- "moldavie"
+dicor$Term[dicor$Term == "multisitu"] <- "multisitué"
+dicor$Term[dicor$Term == "normand"] <- "normandie"
+dicor$Term[dicor$Term == "normat"] <- "normatif"
+dicor$Term[dicor$Term == "océan"] <- "océanie"
+dicor$Term[dicor$Term == "orphelinag"] <- "orphelinage"
+dicor$Term[dicor$Term == "paléodémograph"] <- "paléodémographie"
+dicor$Term[dicor$Term == "pari"] <- "paris"
+dicor$Term[dicor$Term == "polynes"] <- "polynésie"
+dicor$Term[dicor$Term == "quatr"] <- "quatre"
+dicor$Term[dicor$Term == "recens"] <- "recensé"
+dicor$Term[dicor$Term == "recompos"] <- "recomposé"
+dicor$Term[dicor$Term == "reconfigur"] <- "reconfiguration"
+dicor$Term[dicor$Term == "remigr"] <- "remigration"
+dicor$Term[dicor$Term == "sad"] <- "sade"
+dicor$Term[dicor$Term == "saisonnal"] <- "saisonnalité"
+dicor$Term[dicor$Term == "sexual"] <- "sexualité"
+dicor$Term[dicor$Term == "sociodémograph"] <- "sociodémographique"
+dicor$Term[dicor$Term == "socioéconom"] <- "socioéconomique"
+dicor$Term[dicor$Term == "sou"] <- "sous"
+dicor$Term[dicor$Term == "surmortal"] <- "surmortalité"
+dicor$Term[dicor$Term == "teew"] <- "teewa"
+dicor$Term[dicor$Term == "thaïland"] <- "thaïlande"
+dicor$Term[dicor$Term == "trent"] <- "trente"
+
+#head(dicor, N=20)
+```
+
+
+
+### Nouveau tableau lexical à partir du dictionnaire personnalisé
+
+La fonction `combine_terms` permet de remplacer les mots initiaux par les *Terms* issus de cette dernière étape de lemmatisation lemmatisées (`dicor`).
+
+```{r combine}
+#| class.output: output
+dtm_t2 <- combine_terms(dtm_t, dicor)
+dtm_t2
+```
+
+La taille du vocabulaire est *réduite* à 3945 mots distincts au lieu de 4901 initialement.
+
+## Les "mots" les plus employés
+
+On affiche la distibution des 50 mots les plus employés dans les titres (occurrence et %).
+
+```{r distrib}
+#| class.output: output
+frequent_terms(dtm_t2, n=50)
+
+```
+
+*Population* (au singulier ou au pluriel) est utilisé 652 fois dans les titres et représente 2.8% des occurrences, *enquête* (ou enquêtes) 188 fois et près de 0,8% des occurrences .
+
+Le *nuage de mot* permet de visualiser les mots les plus fréquents du corpus des titres.
+On affiche ici les mots d'au moins 5 occurrences et 50 mots au maximum.
+
+```{r wordle }
+set.seed(1)
+cloud <- word_cloud(dtm_t2, color="blue", n=50, min.freq=50)
+```
+
+## Repérer les cooccurrences
+
+On affiche les mots *cooccurrents*, c'est à dire présents simultanément dans les titres.
+
+### Recherche de mots cooccurrents à certains mots "au choix"
+
+```{r cooc_t}
+#| class.output: output
+#cooc_terms(dtm2, "femme")
+knitr::kable((cooc_terms(dtm_t2, "vie", n=10)),caption = "Mots cooccurrents à Vie")
+knitr::kable((cooc_terms(dtm_t2, "famille", n=10)),caption = "Mots cooccurrents à Famille")
+knitr::kable((cooc_terms(dtm_t2, "mortalité", n=10)),caption = "Mots cooccurrents à Mortalité")
+```
+
+Parmi les titres contenant le mot "famille", ce mot représente 16.3% des occurrences et 100% des titres qui contiennent "monoparental" contiennent aussi "famille".
+On pourrait regroupe ces mots pour en faire une seule entité (famille_monoparentale).
+
+### Recherche automatique de thématiques (univers lexicaux)
+
+#### Autour des mots les plus centraux (analyse de similitude)
+
+On génère un graphe de mots où les mots les plus fréquents sont centraux et où les liens représentent les cooccurrences avec ces mots.
+On a le choix entre 2 affichages :
+
+-   Dans une fenêtre *R Plot* de R où on peut déplacer les mots et les liens mais on ne peut l'exporter qu'au format Postscript (non exécuté ici).
+-   Dans la fenêtre *Plots* de RStudio où on pout utiliser la fonction zoom et exporter le graphe sous différents formats.
+
+```{r graph}
+#| class.output: output
+terms_graph(dtm_t2)
+#terms_graph(dtm_t2, vertex.label.cex = 0.5, interactive = T)
+```
+
+## Mettre en relation mots utilisés dans les titres des publications en français et métadonnées
+
+On utilise les caractéristiques des publications à disposition (métadonnées) sont leur type après reclassement (rubrique_net), la période, le nombre d'auteurs et le sexe des auteurs pour voir si les "mots" qu'ils employent dans les titres de leur publications sont spécifiques.
+
+On peut afficher le tableau des métadonnées
+
+```{r meta, eval=FALSE, warning=TRUE, include=FALSE}
+#| class.output: output
+#View(meta(corpus))
+```
+
+## Calculer les spécificités
+
+Le vocabulaire d'une sous-popoulation construite selon les modalités d'une variable qualitative (métadonnée) est comparé à l'ensemble.
+Un *mot* (term) est *spécifique positivement* (ou caractéristique) si sa fréquence y est "anormalement élevée" (la probabilité calculées à partir du modèle hypergéométrique pour les valeurs égales ou supérieures à la sous-fréquence constatée est inférieure au seuil fixé au départ).
+On dit aussi que ce mot est *sur employé*.
+
+### Mots spécifiques
+
+On affiche les mots specifiques de chaque sous-population par ordre de valeur-test décroissante.
+Ici on compare les mots utilisés dans les titres par période .
+
+```{r Specif_T}
+#| class.output: output
+specific_terms(dtm_t2,meta(corpus)$Periode, n=5)
+#specific_terms(dtm_t2,meta(corpus)$Auteurs_sexes, n=5)
+```
+
+Ces valeurs sont significatives au seuil de 5% (p-value \< 0.05 et t-value \> 2).
+
+Exemple d'interprétation : le mot "couple" est specifique dans les titres des articles en français des années \[2010,2020\].
+Il représente 1,3 % de l'ensemble des occurrences des mots employés dans les titres sur cette période et près de 20% des occurrences du mot "couple" sont datées de cette période.
+
+### Fréquence d'un mot par sous-population
+
+On peut regarder la fréquence et la spécificité d'un mot (ici femme) par sous-population (ici les modalité de la metadonnée sexe des auteurs).
+
+```{r freq_T}
+#| class.output: output
+knitr::kable(term_freq(dtm_t2, "femme", meta(corpus)$Auteurs_sexes),  digits = 2,caption = "Spécificités du mot femme")
+
+```
+
+Exemple d'interprétation : Les mots "femme" est spécifique des titres des articles écrits par des femmes.
+
+## Analyse des correspondances sur le tableau lexical agrégé
+
+On fait une analyse factorielle sur le tableau de contingence croisant les *mots* et les modalités d'une ou plusieurs métadonnées (*tableau lexical agrégé*).
+
+On choisit ici le sexe des auteurs et la période.
+"auteurs_nbs",
+```{r AFC_TLA, message=FALSE, warning=FALSE}
+#| class.output: output
+resTLA <- corpus_ca(corpus, dtm_t2, variables=c("Auteurs_sexes","Periode"), sparsity=0.98)
+#explor(resTLA)
+res <- explor::prepare_results(resTLA)
+explor::CA_var_plot(res, xax = 1, yax = 2, lev_sup = FALSE, var_sup = FALSE,
+    var_sup_choice = , var_hide = "None", var_lab_min_contrib = 1, col_var = "Position",
+    symbol_var = "Type", size_var = NULL, size_range = c(10, 300), labels_size = 10,
+    point_size = 30, transitions = TRUE, labels_positions = NULL, xlim = c(-1.05,
+        0.778), ylim = c(-0.892, 0.94))
+```
+
+Les résultats de l'analyse factorielle (plans factoriels, contributions axes par axes) s'affichent dans une fenêtre interactive à l'exécution de la commande `explor()`.
+On y retrouve les valeurs des *contributions* axes par axes qui permettent de déterminer les modalités des variables qui différencient le plus les champs lexicaux des titres.
+Le signe - ou + des valeurs des *coordonnées* permettent de repérer les oppositions qu'on visualise sur la plan factoriel.

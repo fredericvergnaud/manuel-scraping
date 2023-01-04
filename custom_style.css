@@ -1,0 +1,27 @@
+.output {
+  display: block;
+  padding: .4em;
+  margin: 0 0 10px;
+  margin-left: calc(calc(-0.6em + -3px) + 2px);
+  font-size: .875em;
+  line-height: 1.42857143;
+  color: #333;
+  word-break: break-all;
+  word-wrap: break-word;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.figure-img {
+  border: 1px solid #747a7f !important;
+  border-radius: 10px !important;
+  padding: 10px;
+  margin-bottom: 0px !important;
+}
+
+.figure-caption {
+  font-style: italic;
+  text-align: center;
+  font-size: 15px;
+}

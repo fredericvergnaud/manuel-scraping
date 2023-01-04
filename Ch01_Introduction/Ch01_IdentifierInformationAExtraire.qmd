@@ -1,0 +1,116 @@
+# Identifier l'information à extraire {#sec-introduction-identifier-information-extraire .unnumbered}
+
+## Sélecteurs CSS à l'aide de SelectorGadget
+
+Ce premier chapitre traitera du type de scraping le plus simple : extraire de l’information de pages web dont on aura prédéfini en amont les URLs.
+
+Dans les 4 exemples qui suivent, nous allons scraper les pages : 
+
+[http://quotes.toscrape.com/page/1/](http://quotes.toscrape.com/page/1/)
+
+[http://quotes.toscrape.com/page/2/](http://quotes.toscrape.com/page/2/)
+
+[http://quotes.toscrape.com/page/3/](http://quotes.toscrape.com/page/3/)
+
+Sur chaque page, et pour chaque citation, nous souhaitons extraire les éléments suivants : 
+
+*	les lignes contenant l’ensemble de l’information (en marron);
+*	La citation (en rouge);
+*	L’auteur (en bleu);
+*	Les tags (en vert).
+
+![Elements à extraire du site Quotes to Scrape](img/Ch01_D_QTS_ElementsAExtraire.png)
+
+Comme nous l’avons vu dans le chapitre précédent (1-B), nous allons utiliser la panoplie des sélecteurs CSS pour identifier et sélectionner les éléments HTML qui contiennent les informations à extraire.
+
+Voici la structure HTML commune à toutes les citations.
+
+```html
+<div class="quote">
+    <span class="text">“The world as we have created it is a process of our
+    thinking. It cannot be changed without changing our thinking.”</span>
+    <span>
+        by <small class="author">Albert Einstein</small>
+        <a href="/author/Albert-Einstein">(about)</a>
+    </span>
+    <div class="tags">
+        Tags:
+        <a class="tag" href="/tag/change/page/1/">change</a>
+        <a class="tag" href="/tag/deep-thoughts/page/1/">deep-thoughts</a>
+        <a class="tag" href="/tag/thinking/page/1/">thinking</a>
+        <a class="tag" href="/tag/world/page/1/">world</a>
+    </div>
+</div>
+````
+
+Pour identifier le code CSS de ces éléments directement sur la page que nous visualisons dans le navigateur, nous utiliserons le plugin Chromium [SelectorGadget](https://chrome.google.com/webstore/detail/selectorgadget/mhjhnkcfbdhnjickkkdbjoemdmbfginb).
+
+Rendez-vous sur la première page de notre exemple : [http://quotes.toscrape.com/page/1/](http://quotes.toscrape.com/page/1/) et lancez le plugin  SelectorGadget.
+
+Au survol d’une citation, les différents éléments HTML qui la constituent sont encadrés. Au clic sur un de ces éléments, tous les éléments identiques sont surlignés, et la classe de l’élément surligné apparaît dans le champs `Path` de Selector Gadget.
+
+![Selector Gadget](img/Ch01_D_QTS_SelectorGadget.png)
+
+Nous récupèrons ainsi le sélecteur CSS pour chacun des éléments que l’on souhaite extraire : 
+
+*	Les lignes complètes de citation : classe `.quote`
+*	Le texte de la citation : classe `.text`
+*	L’auteur de la citation : classe `.author`
+*	Les tags liés à la citation : classe `.tag`
+
+## *Crawling* de la pagination
+
+Nous avons vu dans les parties précédentes comment l'on navigue sur un site web à l'aide d'hyperliens, et comment tous les sites web se structurent en différents niveaux et profondeurs de pages, que l'on va justement pouvoir naviguer à l'aide de ces mêmes hyperliens.
+
+Pour naviguer sur des pages qui sont situées à un même niveau de profondeur, on utilise ce que l'on appelle communément une *pagination*. Cette pagination est constituée de l'ensemble des urls des liens hypertexte que nous allons devoir extraire afin de pouvoir les naviguer et atteindre les différentes pages de même niveau qui nous intéressent.
+
+Sur le site *Quotes to Scrape*, les éléments HTML de pagination sont structurés de la manière suivante.
+
+```html
+<nav> <!-- un élément nav -->
+  <ul class="pager"> <!-- un élément ul de classe pager, qui déclare l'ouverture d'une liste à puces -->
+    <li class="next"> <!-- un élément li de classe next, qui déclare un item d'une liste à puces -->
+      <a href="/page/2/" class="">Next <span aria-hidden="true" class="">→</span></a> <!-- un élément a sans classe, qui est le premier item de lien de la liste à puce déclarée précédemment -->
+    </li>
+  </ul>
+</nav>
+````
+
+Cette structure se répétant sur chaque page de citations, extraire les liens de pagination va revenir à sélectionner sur chaque page le lien `a` de texte `Next` qui pointe vers la page suivante de même niveau. Nous appelerons *crawler* ce type de fonction qui va parcourir les urls de liens ainsi extraites.
+
+## Sélecteurs CSS à l'aide de Scrapy
+
+Le framework Scrapy possède une interface *shell* qui va permettre de tester rapidement la sélection d'éléments sur une page web. Dans le Terminal de PyCharm, saisissez simplement la commande 
+
+```python
+$ scrapy shell "https://quotes.toscrape.com/page/1/"
+````
+
+Cette commande va stocker la structure HTML de la page demandée dans un objet `response`. C'est sur cette objet que vous allez pouvoir vous entrainer à sélectionner les éléments HTML pour en extraire le contenu.
+
+```python
+In [1]: citation_1 = response.css("div.quote")[0] # Sélection de la première citation contenue dans le 1er élément (au rang 0) div de classe quote
+In [2]: text_1 = citation_1.css("span.text::text").get() # Extraction du texte de la première citation contenu dans un élément span de classe text
+In [3]: text_1 # Affichage du texte de la première citation
+````
+
+```{.output}
+Out[3]: '“The world as we have created it is a process of our thinking. It cannot be changed without changing our thinking.”'
+````
+
+De la même manière, vous pouvez extraire l'auteur et les tags de la première citation de la même manière que précédemment : 
+
+```python
+In [4]: author_1 = citation_1.css("small.author::text").get()
+In [5]: author_1
+````
+```{.output}
+Out[5]: 'Albert Einstein'
+````
+```python
+In [6]: tags_1 = citation_1.css("div.tags a.tag::text").getall()
+In [7]: tags_1
+````
+```{.output}
+Out[7]: ['change', 'deep-thoughts', 'thinking', 'world']
+````

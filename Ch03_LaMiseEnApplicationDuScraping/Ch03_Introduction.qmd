@@ -1,0 +1,43 @@
+# Introduction {#sec-mise-en-application-introduction .unnumbered}
+
+Dans ce chapitre d'application nous allons scraper des informations sur le site de la revue [Population](http://www.revue-population.fr/liste-numeros/) à l'aide des méthodes vues dans le chapitre précédent.
+
+Le site de la revue Population n’est pas un site complexe, qui nécessiterai par exemple de « scroller » jusqu’en bas de page pour accéder à la suite de l’affichage des numéros de la revue, ou bien de se connecter à un compte utilisateur pour accéder aux données qu’il héberge. Ce n’est pas non plus un site dynamique, dont la structure des pages serait générée après la connexion au site. Nous nous trouvons donc face à des pages dont la structure HTML est stable, ce qui en rend le scraping assez aisé.
+
+
+## Présentation des pages de la revue Population
+
+[La page "Tous les numéros" du site de la revue Population](http://www.revue-population.fr/liste-numeros/) présente l’ensemble des numéros de la revue.
+
+![Population - Page d'accueil](img/Population_Accueil.png)
+En cliquant sur l’un des numéros, nous accédons à la liste des articles contenus dans chaque numéro. Par exemple, pour le numéro 4 du volume 75 :
+
+![Population - Détail d'un numéro](img/Population_DetailsNumero.png)
+
+En cliquant sur un article, nous accédons à son contenu : 
+
+* Les noms des auteurs, 
+* Le titre, 
+* La rubrique dans laquelle l’article a été publié,
+* Le numéro de population dans lequel l’article a été publié et à quelles pages, 
+* Le résumé si existant,
+* Les mots-clés si existants.
+
+![Population - Détail d'un article](img/Population_DetailsArticle.png)
+
+Selon ce que nous venons de voir, le site population est donc structuré en trois niveaux de profondeur :
+
+*	Niveau 0 : la page de départ qui présente la liste des numéros de la revue Population
+*	Niveau -1 : les pages qui présentent le détail de chaque numéro
+*	Niveau -2 : les pages qui présentent le détail de chaque article
+
+## Sélection des éléments à extraire
+
+Après analyse de la structure HTML à l'aide du plugin `SelectorGadget` ou de l'inspecteur intégré à Chromium, voici les sélecteurs que nous avons identifié : 
+
+* les noms des auteurs de l'article : `.clearfix > a` (les éléments `a` enfants des éléments de classe `clearfix`),
+* le titre de l’article : `.fl-post-title` (les éléments de classe `fl-post-title`)
+* la rubrique dans laquelle l'article a été publié : `.article-section` (les éléments de classe `article-section`), 
+* le numéro de population dans lequel l'article a été publié et à quelles pages : `.article-meta` (les éléments de classe `article-meta`)
+* le résumé : `.corps p`, (les éléments `p` descendants des éléments de classe `corps`)
+* les mots clefs : `.motcle` (les éléments de classe `motcle`)

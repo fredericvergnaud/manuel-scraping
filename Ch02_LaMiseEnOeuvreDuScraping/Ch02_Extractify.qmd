@@ -1,0 +1,222 @@
+# Extractify {#sec-mise-en-oeuvre-extractify .unnumbered}
+
+## Description de l'outil
+
+Extractify se présente sous la forme d'une extension (*plugin*) libre pour chrome.
+
+Le scraping de données se déroule selon ces grandes étapes : 
+
+*	Sélectionner sur une page web des informations structurées sous forme de tableau (lignes x colonnes) de manière automatique, par sélection directe sur la page web, ou manuelle, en utilisant les sélecteurs CSS simples ou combinés.
+*	Sélectionner la pagination de pages de structure identique et de même niveau
+*	Recommencer le processus autant de fois que l’on veut pour des niveaux inférieurs
+*	Scraper l’ensemble de la sélection
+*	Obtenir finalement un fichier au format json facilement exportable vers d’autres logiciels
+
+D’un point de vue technique, Extractify utilise l’identification d’éléments HTML au sein de la structure d’une page web pour pouvoir en extraire les données. Pour repérer ces éléments, Extractify s’appuie sur certains de leurs attributs, principalement la classe et l’identifiant.
+
+D’un point de vue conceptuel, pour Extractify, le niveau (level) est le degré de profondeur d’une page. La page sur laquelle vous allez exécuter pour la première fois le plugin constituera le niveau 0. Les pages plus profondes atteignables par hyperliens seront donc aux niveaux -1, puis -2, puis -3 …etc. 
+
+Sur chaque page, Extractify considère que les données que vous voulez extraire sont structurées en lignes et en colonnes, c’est à dire sous la forme d’un tableau. Vous allez donc devoir d’abord sélectionner des lignes, puis des colonnes à l’intérieur de ces lignes.
+Ensuite, vous pourrez sélectionner des liens de pagination, c’est à dire des liens vers des pages de profondeur équivalente à la page observée et structurées de la même manière que la page observée.
+
+Enfin, vous pourrez ajouter un niveau inférieur en sélectionnant des liens vers ce niveau inférieur qui seront situés à l’intérieur des lignes déjà sélectionnées.
+
+Dans l'exemple qui va suivre et qui se base sur le site *Quotes to Scrape*, vous allez commencer par exécuter Extractify sur la page d'accueil qui affichera les 10 premières citations. Cette page sera considérée comme le niveau 0. 
+Chaque lien présent au sein de chaque citation, menant au descriptif de l'auteur, sera un lien vers un niveau inférieur (le niveau -1) de cette citation.
+Ainsi, scraper l'ensemble des citations reviendra à scraper 2 niveaux de profondeur : 
+
+*	Niveau 0 : la page affichant les 10 premières citations et les pages de citations de même niveau;
+*	Niveau -1 : les pages affichant les auteurs de ces citations.
+
+## Description de l'interface
+
+![Extractify - Interface](img/Extractify_Interface.png)
+
+## Installation
+
+*	Rendez-vous ici : [https://github.com/fredericvergnaud/extractify](https://github.com/fredericvergnaud/extractify)
+*	Allez dans Releases, téléchargez la dernière version, puis décompressez-là dans un répertoire de votre choix
+*	Ouvrez le navigateur Chrome (ou Chromium) et allez sur la page des extensions :  [chrome://extensions/](chrome://extensions/)
+*	Sélectionnez « Mode développeur » en haut à droite de la page
+*	Cliquez sur « Chargez l’extension non empaquetée » et sélectionnez le répertoire « extractify-numero_version » précédemment décompressé.
+
+
+## Saisie des sélecteurs d'éléments à scraper
+
+Une fois les éléments identifiés à l'aide de *Selector Gadget*, ouvrez le plugin Extractify et nommez le type de votre premier niveau, pour cet exemple nous avons choisi `Citation`, puis cliquez sur `Select this level type`.
+
+![Extractify - Selection d'un type de niveau](img/Extractify_SelectLevelType.png)
+
+Pour rappel, Extractify fonctionne sous forme de lignes et de colonnes. Dans notre exemple du site *Quotes to scrape*, les lignes, qui sont les contenants, vont être représentées par les lignes de citations, et les colonnes, qui sont les contenus, par les informations contenues dans chacune de ces lignes, à savoir le texte de la citation, l’auteur de la citation et les étiquettes (« tags ») attachées à la citation.
+
+### Ajouter des lignes
+
+#### Ajouter des lignes - Méthode manuelle
+
+Ajoutez les lignes de citations en cliquant sur `Add a row for level 0` puis en saisissant le sélecteur CSS identifié précédemment `.quotes`.
+
+::: {#ExtractifyAddRowManual layout-ncol=2}
+
+![Extractify - Click sur le bouton "Add a row for level 0"](img/Extractify_AddRowButton.png)
+
+![Extractify - Saisie du sélecteur CSS](img/Extractify_AddRowManual-1.png)
+
+:::
+
+Après avoir cliquer sur le bouton `Add row` : toutes les lignes qui contiennent la classe `.quote` se surlignent sur votre navigateur :
+
+![Extractify - Lignes surlignées sur la page web après saisie d'un sélecteur CSS](img/Extractify_AddRowManual-2.png)
+
+Il est à noter que la couleur des lignes est donnée aléatoirement par Extractify. Il est donc normal que si vous recommencez votre sélection de lignes, la couleur de leur surlignage dans votre navigateur ne sera pas la même.
+
+#### Ajouter des lignes - Méthode automatique
+
+Ajoutez les lignes de citations en cliquant sur `Add a row for level 0` puis cliquez directement sur le bouton `Add row` sans saisir de sélecteur CSS.
+
+::: {#ExtractifyAddRowAuto layout-ncol=2}
+
+![Extractify - Click sur le bouton "Add a row for level 0"](img/Extractify_AddRowButton.png)
+
+![Extractify - Click sur le bouton "Add row" sans saisir de classe CSS](img/Extractify_AddRowAuto-1.png)
+
+Extractify - Ajout de ligne - Méthode automatique 
+:::
+
+Vous pouvez ensuite sélectionner directement les lignes de citations sur le navigateur : au survol des éléments HTML avec la souris, ceux-ci sont surlignés par le plugin, ce qui vous permet de les repérer facilement, de la même manière que vu précédemment avec Selector Gadget.
+
+![Extractify - Ligne surlignée sur la page web au survol de la souris](img/Extractify_AddRowAuto-2.png)
+
+Lorsque vous survolez l’élément souhaité, ici une citation, cliquez pour le sélectionner. Les éléments identiques sont à leur tour surlignés, et la sélection de votre ligne apparaît dans l’interface d’Extractify : son type (« row »), sa couleur de sélection, son élément HTML et son sélecteur (« DIV.quote »).
+
+::: {#ExtractifyAddRowAuto2 layout-ncol=2}
+
+![Extractify - Lignes surlignées sur la page web après click sur élément HTML"](img/Extractify_AddRowAuto-3.png)
+
+![Extractify - Interface Extractify mise à jour après une sélection de ligne automatique](img/Extractify_AddRowAuto-4.png)
+
+Extractify - Ajout de ligne - Méthode automatique 
+:::
+
+Pour la suite de la sélection, les informations supplémentaires seront ajoutées de la même manière, par méthode manuelle ou automatique, mais cette fois sous forme de colonnes. 
+
+### Ajouter des colonnes
+
+#### Ajouter des colonnes - Méthode manuelle
+
+Ajoutez les textes de citations en cliquant sur `Add a column for row 1` puis en saisissant un titre de colonne ainsi que le sélecteur CSS identifié précédemment `.text`.
+
+::: {#ExtractifyAddColManual layout-ncol=2}
+
+![Extractify - Click sur le bouton "Add a column for row 1"](img/Extractify_AddColButton.png)
+
+![Extractify - Saisie du sélecteur CSS](img/Extractify_AddColManual-1.png)
+
+:::
+Après avoir cliquer sur le bouton `Add column`, tous les éléments HTML qui contiennent la classe `.text` se surlignent sur votre navigateur, et l’interface d’Extractify vous présente le type d’élément sélectionné, sa couleur de surlignage dans le navigateur, son sélecteur, et son titre.
+
+::: {#ExtractifyAddColManual2 layout-ncol=2}
+
+![Extractify - Elements en colonnes surlignés sur la page web après saisie d'un sélecteur CSS](img/Extractify_AddColManual-2.png)
+
+![Extractify - Interface Extractify mise à jour après une sélection de colonnes manuelle](img/Extractify_AddColManual-3.png)
+
+:::
+
+Les informations qu’il reste à sélectionner, c’est à dire l’auteur et les étiquettes de chaque citation, vont l’être selon le même principe d’ajout de colonne. A la fin de la sélection, tous les éléments souhaités à extraire au sein de votre page web sont surlignés, et l'interface Extractify vous présente le détail de votre sélection.
+
+::: {#ExtractifyAddColManual3 layout-ncol=2}
+
+![Extractify - Elements en colonnes surlignés sur la page web après saisie d'un sélecteur CSS](img/Extractify_AddColManual-4.png)
+
+![Extractify - Interface Extractify mise à jour après une sélection de colonnes manuelle](img/Extractify_AddColManual-5.png)
+
+:::
+
+## Scraping
+
+Une fois que les données à extraire ont été identifiées et sélectionnées, nous pouvons lancer le scraping en appuyant sur la touche `Scrap` en haut à droite.
+
+![Extractify - Click sur le bouton de lancement du scraping](img/Extractify_ScrapButton.png)
+
+Deux évènements simultanés se produisent alors : 
+
+*	Dans votre navigateur, un nouvel onglet s’ouvre sur votre scraping en train de se faire : vous voyez défiler les pages scrapées.
+
+* Dans l’interface d’Extractify, une boite de dialogue s’ouvre, vous indiquant l’avancement de votre scraping. Vous pouvez à tout moment l’interrompre en cliquant sur le bouton `Cancel`.
+
+::: {#ExtractifyScrap layout-ncol=2}
+
+![Extractify - Nouvel onglet ouvert lors de l'exécution du scraping](img/Extractify_Scrap-1.png)
+
+![Extractify - Boite de dialogue du scraping en cours](img/Extractify_Scrap-2.png)
+
+:::
+
+
+Une fois le scraping terminé, la boite de dialogue vous indique le nombre d’éléments scrapés et télécharge le fichier de résultats au format json.
+
+::: {#ExtractifyScrap2 layout-ncol=2}
+
+![Extractify - Boite de dialogue du scraping terminé](img/Extractify_Scrap-3.png)
+
+![Extractify - Fichier de sortie du scraping au format json](img/Extractify_Scrap-4.png)
+
+:::
+
+En cliquant sur `Ok`, la boite de dialogue se ferme, ainsi que l’onglet de votre navigateur au sein duquel s’est effectué votre scraping.
+
+Au sein du fichier de sortie du scraping, il est à remarquer que les étiquettes sont séparées par une étoile (*). Lorsque les données scrapées seront importées dans un logiciel de formatage et de nettoyage, type OpenRefine, les étiquettes seront facilement repérables et détachables.
+
+Pour effectuer le même travail sur les autres pages de notre exemple, c’est à dire les pages [http://quotes.toscrape.com/page/2/](http://quotes.toscrape.com/page/2/) et [http://quotes.toscrape.com/page/3/](http://quotes.toscrape.com/page/3/), il vous faut recommencer les manipulations précédentes en les prenant comme point de départ. Bien évidemment, Extractify intègre nativement les fonctions qui vont vous permettre de sélectionner vous-même les pages de même niveau accessibles par la pagination, ce que nous verrons dans la partie suivante.
+
+## Les liens de pagination
+
+De la même manière que pour les lignes et les colonnes, Extractify permet de sélectionner des liens de pagination de manière manuelle ou automatique.
+
+### Sélection automatique de pagination
+
+Commençons par cliquer sur le bouton de sélection de pagination `Select pagination for level 0` qui ouvre une fenêtre de dialogue identique à celles déjà vues jusqu'ici.
+
+::: {#ExtractifyPaginationSelectionButton layout-ncol=2}
+
+![Extractify - Bouton de sélection des éléments de pagination](img/Extractify_PaginationButton.png)
+
+![Extractify - Dialogue de sélection des éléments de pagination](img/Extractify_PaginationDialog.png)
+
+:::
+
+Pour effectuer une sélection directement sur la page web présente dans le navigateur, cliquez sur le bouton `Add pagination` sans saisir de sélecteur.
+
+Si vous cliquez directement sur le lien de pagination `Next`, Extractify vous renvoie une erreur car il ne trouve pas de classe CSS à sélectionner.
+
+::: {#ExtractifySelectPaginationAuto layout-ncol=2}
+
+![Extractify - Sélection automatique du lien de pagination](img/Extractify_SelectPaginationAuto-1.png)
+
+![Extractify - Erreur à la sélection automatique du lien de pagination](img/Extractify_SelectPaginationAuto-2.png)
+
+:::
+
+En revanche, en cliquant sur l'espace autour du lien `Next`, Extractify parvient à trouver quelque chose : un élément sélectionnable qui possède une classe CSS, mais qui est indiqué comme ne contenant qu'un seul lien de pagination. 
+
+![Extractify - Sélection automatique du lien de pagination](img/Extractify_SelectPaginationAuto-3.png)
+
+En effet, lorsque l'on effectue une sélection de pagination, Extractify s'attend à trouver plusieurs liens vers différentes pages de même niveau (page 2, page 3, page 4 ...etc.). Dans le cas présent, il n'y a qu'un bouton `Next` qui ne possède qu'un seul lien vers la page suivante. Il suffit donc simplement de cliquer sur `Ok`pour valider la sélection.
+
+![Extractify - Mise à jour de l'interface après sélection automatique du lien de pagination](img/Extractify_SelectPaginationAuto-4.png)
+
+### Sélection manuelle de pagination
+
+La sélection manuelle de liens de pagination  *via* un sélecteur CSS s'effectue de la même manière que vu précédemment au sujet des lignes et des colonnes. Après avoir cliquer sur le bouton `Select a pagination for level 0`, saisissez le sélecteur adéquat, ici `.pager`, qui est la classe de l'élément `ul` qui déclare l'ouverture d'une liste d'items (cf. introduction de ce chapitre), ici des liens, puis cliquez sur `Ok`. Extractify s'attend à trouver plusieurs liens vers différentes pages de même niveau (page 2, page 3, page 4 ...etc.) et va donc envoyer un message d'attention car il ne trouve qu'un seul lien de pagination. Ce qui est normal dans le cas présent car il n'y a qu'un bouton `Next` qui ne possède qu'un seul lien vers la page suivante. Il suffit donc simplement de cliquer sur `Ok`pour valider la sélection. L'élément `ul` de classe `pager` est ainsi surligné dans votre navigateur, et l'interface d'Extractify se met à jour.
+
+::: {#ExtractifySelectPaginationManual layout-ncol=2}
+
+![Extractify - Sélection manuelle du lien de pagination](img/Extractify_SelectPaginationManual-1.png)
+
+![Extractify - Sélection manuelle du lien de pagination](img/Extractify_SelectPaginationManual-2.png)
+
+:::
+
+## Le scraping des auteurs
+
+Afin d'extraire les auteurs de citations, il va nous falloir descendre dans l'arborescence du site.

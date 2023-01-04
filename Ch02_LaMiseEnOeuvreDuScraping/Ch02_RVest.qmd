@@ -1,0 +1,319 @@
+---
+execute: 
+  warning: false
+  message: false
+  echo: true
+---
+
+# RVest {#sec-mise-en-oeuvre-rvest .unnumbered}
+
+## Description de l'outil
+
+R  = langage de programmation et logiciel libre destiné aux statistiques
+Fonctionne par cœur + bibliothèques / packages :
+-	Cœur = 
+-	Bibliothèques = ensemble de fonctions dédiées à un sujet particulier (par exemple ...), et que l’on peut appeler au sein de son code  / script
+Rvest = bibliothèque dédiée au scraping = ensemble de fonctions développées pour faire du scraping
+
+
+## Définition d'un scraper
+
+Nous commençons par charger les packages nécessaires :
+
+* rvest, qui va nous permettre de parcourir une structure HTML afin d'en sélectionner des éléments et d'en extraire le contenu
+* tidyverse, un ensemble de packages qui va nous permettre de mettre en forme, manipuler et visualiser les données extraites
+
+```{r}
+# Chargement des packages nécessaires
+library('rvest')
+library('tidyverse')
+```
+
+Nous commençons notre script en créant une variable `page_html_lue` qui va lire et stocker la structure HTML de la page demandée http://quotes.toscrape.com/page/1/
+
+```{r}
+#| class.output: output
+# Création de la variable page_html
+page_html_lue <-read_html("http://quotes.toscrape.com/page/1/")
+#Affichage de la variable page_html
+page_html_lue
+```
+
+Au sein de cette variable de stockage, nous allons récupérer les informations dont nous avons besoin. Nous commencons par récupérer les lignes de citation à l'aide de la classe `.quote` que nous avons identifié précédemment. Pour ce faire, nous créons une variable `citation_html` qui va stocker les éléments HTML identifiés par la classe `.quote`.
+
+```{r}
+#| class.output: output
+# Création de la variable citation_html
+citation_html <- html_nodes(page_html_lue,".quote")
+
+#Affichage de la variable citation_html
+citation_html
+```
+
+Une fois les éléments HTML contenant les citations sélectionnés, ici des éléments `div`, nous pouvons en extraire pour chacun d'eux les données souhaitées.
+
+```{r}
+#| class.output: output
+# Création d'un tableau de type data_frame afin de stocker notre résultat sous forme de lignes et de colonnes
+# On utilise la fonction html_nodes qui va sélectionner un élément HTML en fonction du sélecteur passé en variable, et en extraire le texte à l'aide de la fonction html_text
+donnees_scrapees <- data_frame(
+  text = html_nodes(page_html_lue,'.text') %>% html_text,
+  author = html_nodes(page_html_lue,'.author') %>% html_text,
+  tags = html_nodes(page_html_lue,'.tags') %>% html_text)
+# Affichage du tableau df ainsi créé
+donnees_scrapees
+```
+
+Il est à noter ici qu'au contraire d'Extractify, nous avons sélectionné les étiquettes de citation dans un ensemble unique, l'élément HTML `div` de classe `.tags`, sans les distinguer entre elles.
+
+Pour effectuer le même travail sur les autres pages de notre exemple, c'est à dire les pages http://quotes.toscrape.com/page/2/ et http://quotes.toscrape.com/page/3/, il nous faut recommencer les manipulations précédentes en les prenant comme point de départ. Cependant, nous pouvons également stocker l'ensemble des adresses à scraper dans un vecteur, puis opérer une boucle au sein de laquelle nous allons effectuer les mêmes opérations vues précédemment.
+
+```{r}
+#| class.output: output
+# Création d'un vecteur avec l'ensemble des pages web à scraper
+pages_a_scraper<-c("http://quotes.toscrape.com/page/1/","http://quotes.toscrape.com/page/2/","http://quotes.toscrape.com/page/3/")
+# Création d'un vecteur avec l'ensemble des sélecteurs
+selecteurs_CSS <- c('.text', '.author', '.tags') 
+# Création d'un tableau vide pour notre résultat final
+donnees_scrapees <- data_frame()
+# Première boucle qui va lire le vecteur pages
+for (p in c(1:length(pages_a_scraper))){
+  # Création de la variable page_html_lue
+  page_html_lue<-read_html(pages_a_scraper[p])
+  # Création de la variable citation_html
+  citation_html<-html_nodes(page_html_lue, ".quote")
+  # Création d'un tableau temporaire qui va stocker le scraping d'une page
+  # Afin de distinguer les pages et les citations sur chaque page, nous ajoutons une colonne names qui indiquera le numéro de page p, ainsi que le numéro de citation c
+  donnees_scrapees_temp <- data_frame(names = paste('p', p, '-c', c(1:length(citation_html)), sep = ''))
+  # Seconde boucle qui va lire les sélecteurs
+  for (i in selecteurs_CSS){
+    # Extraction des données dans un tableau temporaire de type dataframe
+    donnees_scrapees_temp[i] <- html_nodes(page_html_lue,i) %>% html_text
+  }
+  # Ajout des lignes du tableau temporaire au tableau de résultat final
+  donnees_scrapees <- rbind(donnees_scrapees, donnees_scrapees_temp)
+}
+# Affichage du tableau final
+donnees_scrapees
+```
+
+Créons enfin une fonction `scraper` finale qui va prendre en argument un vecteur d'urls à scraper `pages_a_scraper`.
+
+```{r}
+#| class.output: output
+scraper <- function (pages_a_scraper) {
+  selecteurs_CSS <- c('.text', '.author', '.tags') 
+  donnees_scrapees <- data_frame()
+  for (p in c(1:length(pages_a_scraper))){
+    page_html_lue<-read_html(pages_a_scraper[p])
+    citation_html<-html_nodes(page_html_lue, ".quote")
+    donnees_scrapees_temp <- data_frame(names = paste('p', p, '-c', c(1:length(citation_html)), sep = ''))
+    for (i in selecteurs_CSS){
+      donnees_scrapees_temp[i] <- html_nodes(page_html_lue,i) %>% html_text
+    }
+    donnees_scrapees <- rbind(donnees_scrapees, donnees_scrapees_temp)
+  }
+  donnees_scrapees
+}
+
+# Lancement de la fonction scraper avec un vecteur d'urls contenant les 3 premières pages du site Quotes to scrape
+pages_a_scraper<-c("http://quotes.toscrape.com/page/1/","http://quotes.toscrape.com/page/2/","http://quotes.toscrape.com/page/3/")
+scraper(pages_a_scraper)
+```
+
+## Le crawler : récolter automatiquement des urls
+
+Nous avons créé dans la partie précédente un robot `scraper` capable d'extraire des données à partir d'une liste donnée d'urls de pages web.
+Dans ce qui suit, nous allons automatiser la récolte de ces urls. 
+
+Nous commençons par charger les packages nécessaires rvest et tidyverse, que nous avons vu précédemment.
+
+```{r}
+library('rvest')
+library('tidyverse')
+```
+
+Nous définissons ensuite une variable `url_depart` qui est l'url de la première page du site Quotes to scrape, et l'ajoutons à un vecteur `pages_a_scraper` qui contiendra l'ensemble des urls de pages de citations récoltées.
+
+```{r}
+url_depart <- 'http://quotes.toscrape.com/'
+pages_a_scraper <- c()
+pages_a_scraper <- append(pages_a_scraper, url_depart) 
+```
+
+Nous définissons ensuite une variable de session `url_session` qui va nous permettre de simuler la navigation sur Quotes to scrape.
+
+```{r}
+url_session <- session(url_depart) 
+```
+
+Nous savons à l'avance que le site Quotes to scrape contient 10 pages de citations. Etant donné que nous ne comptons pas la première page, nous définissons la variable `nb_pages_citations` à 9.
+
+```{r}
+nb_pages_citations <- 9
+```
+
+Enfin, nous créons une boucle d'exécution qui va extraire les urls des liens pointant vers les pages de citations.
+
+```{r}
+# Pour chaque page ...
+for(i in 1:nb_pages_citations) { 
+    url_n <- url_session %>% 
+      html_nodes(".next a") %>% # ... sélection des éléments a enfants d'élements de classe next
+      html_attr("href") # ... extraction de leur attribut href qui contient l'url
+    
+     # ... navigation sur la page suivante d'adresse url_n que l'on vient de sélectionner
+    url_session <- url_session %>% session_jump_to(sample(url_n, 1))
+    
+     # ... enregistrement de l'adresse url de la page nouvelle page visitée dans le vecteur d'urls pages_a_scraper
+    pages_a_scraper <- append(pages_a_scraper, url_session$url)
+}
+```
+
+Une fois la boucle achevée, il ne nous reste qu'à afficher le vecteur `pages_a_scraper` qui contient l'ensemble des urls récoltées et pointant vers les pages de citations du site Quotes to scrape. 
+
+```{r}
+#| class.output: output
+pages_a_scraper
+```
+
+Il ne nous reste qu'à intégrer l'ensemble de ces commandes dans une fonction `crawler`.
+
+```{r}
+crawler <- function(url_depart, nb_pages_citations) {
+  url_session <- session(url_depart) 
+  pages_a_scraper <- c()
+  pages_a_scraper <- append(pages_a_scraper, url_depart) 
+  
+  for(i in 1:nb_pages_citations) { 
+    url_n <- url_session %>% 
+      html_nodes(".next a") %>% # ... sélection des éléments a enfants d'élements de classe next
+      html_attr("href") # ... extraction de leur attribut href qui contient l'url
+    
+     # ... navigation sur la page suivante d'adresse url_n que l'on vient de sélectionner
+    url_session <- url_session %>% session_jump_to(sample(url_n, 1))
+    
+     # ... enregistrement de l'adresse url de la page nouvelle page visitée dans le vecteur d'urls pages_a_scraper
+    pages_a_scraper <- append(pages_a_scraper, url_session$url)
+  }
+  pages_a_scraper 
+}
+```
+
+Et nous appelerons cette fonction de la manière suivante.
+
+```{r}
+#| class.output: output
+url_depart <- 'http://quotes.toscrape.com/'
+nb_pages_citations <- 9
+crawler(url_depart, nb_pages_citations)
+
+```
+
+Enfin, si nous désirons intégrer ce script au scraper que nous avons réalisé précédemment, il nous suffit de rappeler la fonction `scraper` qui va prendre en argument ce nouveau script `crawler`:
+
+```{r}
+#| class.output: output
+scraper(crawler(url_depart, nb_pages_citations))
+```
+
+## Le scraping des auteurs
+
+Nous allons modifier le code de notre crawler initial afin qu'il prenne en compte les liens vers les pages biographiques.
+
+```{r}
+crawler <- function(url_depart, nb_pages_citations) {
+  url_session <- session(url_depart) 
+  pages_a_scraper <- c()
+  pages_a_scraper <- append(pages_a_scraper, url_depart) 
+  
+  # On crée un vectuer qui contiendra l'ensemble des urls des pages biographiques des auteurs
+  pages_auteur_a_scraper <- c()
+  # On récupère d'abord les urls des pages biographiques de la première page.
+  url_auth <- url_session %>% 
+    html_nodes(".quote span a") %>% # Permet d'identifier le selecteur '.quote span a'
+    html_attr("href") # Permet de récupérer le lien url attaché au selecteur '.quote span a'
+  # on enregistre ces urls dans notre vecteur principal  
+  pages_auteur_a_scraper <- append(pages_auteur_a_scraper, url_auth) 
+  
+  for(i in 1:nb_pages_citations) { 
+    url_n <- url_session %>% 
+      html_nodes(".next a") %>% # ... sélection des éléments a enfants d'élements de classe next
+      html_attr("href") # ... extraction de leur attribut href qui contient l'url
+    
+     # ... navigation sur la page suivante d'adresse url_n que l'on vient de sélectionner
+    url_session <- url_session %>% session_jump_to(sample(url_n, 1))
+    
+     # ... enregistrement de l'adresse url de la page nouvelle page visitée dans le vecteur d'urls pages_a_scraper
+    pages_a_scraper <- append(pages_a_scraper, url_session$url)
+    
+    # On opère la même commande sur les urls d'auteurs
+    url_auth <- url_session %>% 
+      html_nodes(".quote span a") %>% # Permet d'identifier le selecteur '.quote span a'
+      html_attr("href") # Permet de récupérer le lien url attaché au selecteur '.quote span a'
+    # on enregistre ces urls dans notre vecteur principal
+    pages_auteur_a_scraper <- append(pages_auteur_a_scraper, url_auth) 
+  }
+  
+  # Cette petite manipulation permet de ne récupérer que les urls uniques de notre vecteur et permet en outre de la classer par ordre alphabétique.
+  pages_auteur_a_scraper <- levels(as.factor(pages_auteur_a_scraper)) 
+  
+  # Enfin pour terminer, il faut ajouter la base de l'url du site à chaque élément de notre nouveau vecteur.
+  ajout_deb_url <- function(monvec){
+    return(paste0(url_depart,monvec))
+  }
+  pages_auteur_a_scraper <- unlist(lapply(pages_auteur_a_scraper,ajout_deb_url))
+    
+  urls <- list(pages_a_scraper, pages_auteur_a_scraper)
+  return(urls) # La fonction crawler retourne la liste contenant deux vecteurs:
+  # le premier (url_vect_site) contient toutes les urls de chaque page du site;
+  # le second (url_vect_auth) contient toutes les urls de chaque page biographique.
+}
+```
+
+On lance notre fonction, *crawler* et on enregistre ce qu'elle retourne. Comme on le voit, elle enregistre l'ensemble des urls du site et des pages biographiques.
+
+```{r}
+urls <- crawler('http://quotes.toscrape.com/',9)
+urls
+```
+
+
+#### Extraction des informations
+
+Pour rappel nos selecteurs CSS sont:
+leur prénom et leur nom: (.author-title);
+date de naissance: (.author-born-date); 
+lieu de naissance: (.author-born-location); 
+la description de leur biographie: (.author-description).
+
+A la difference du code précédant (chapitre 3), notre *crawler* n'est pas allé ici sur les pages où l'on souhaite extraire des informations, mais a simplement récupérer l'url de ces pages. Dès lors il suffit de créer un scraper sur une liste (ici un vecteur) d'urls. Cette liste (ou vecteur) est l'objet: urls[[2]].
+
+```{r}
+
+pages <- urls[[2]]
+
+CSS <- c('.author-title', '.author-born-date',
+  '.author-born-location', '.author-description') # Vecteur de nos selecteurs
+
+d <- as.data.frame(setNames(replicate(4,numeric(0), simplify = F),c("Nom","DateN","LieuN","Description") ))
+
+scraper <- function(url){
+  
+  CSS <- c('.author-title', '.author-born-date',
+  '.author-born-location', '.author-description')
+  
+  page_html <- read_html(url)
+  
+  auth <- c(html_nodes(page_html,CSS[1]) %>% html_text,
+            html_nodes(page_html,CSS[2]) %>% html_text,
+            html_nodes(page_html,CSS[3]) %>% html_text,
+            html_nodes(page_html,CSS[4]) %>% html_text)
+  
+  return(auth)
+}
+d <- as.data.frame(t(sapply(pages, scraper)))
+
+d[1,]
+
+```

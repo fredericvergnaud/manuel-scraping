@@ -1,0 +1,173 @@
+---
+execute: 
+  warning: false
+  message: false
+  echo: true
+  eval: false
+---
+
+# Scrapy {#sec-mise-en-application-scrapy .unnumbered}
+
+On va reprendre ici le principe de scraping du site de la revue population mais avec Scrapy.
+Il nous faut trois éléments car trois niveaux.
+D'abord on veut récupérer les urls des pages de chaque numéro. Puis depuis chaque numéro on veut récupérer les urls des pages des articles. Enfin, on veut extraire les informations souhaitées. 
+
+On crée un nouveau projet scrapy:
+
+```{python 03_1_Scrapy_Créer un projet, python.reticulate = F, eval=F, echo=T}
+scrapy startproject population
+```
+
+## Test des sélecteurs
+
+```{python 03_1_Scrapy_Test des selecteurs, python.reticulate = F, eval=F, echo=T}
+
+# Extraction du lien des pages des numéros:
+
+  # Dans le terminal, on lance:
+  scrapy shell 'http://www.revue-population.fr/liste-numeros/'
+  
+  # Pour Windows, ne pas oublier les doubles guillemets
+  scrapy shell "http://www.revue-population.fr/liste-numeros/"
+
+  response.css('.grid-item a').get()
+  # Récupération du lien -> pb récupère les liens deux fois
+  response.css('.grid-item a::attr(href)').getall()
+  # On teste un autre selecteur -> ça marche
+  response.css('h2 a::attr(href)').getall()
+
+
+# Extraction du lien des pages des numéros:
+
+  # Dans le terminal, on lance:
+  scrapy shell 'http://www.revue-population.fr/numero/?numero=POPU_2001'
+
+  response.css('.summary-title a').get()
+  # Récupération du lien -> ça fonctionne
+  response.css('.summary-title a::attr(href)').getall()
+
+
+# Extraction des informations des pages des articles
+
+  # Dans le terminal, on lance:
+  scrapy shell "http://www.revue-population.fr/article/?article=POPU_2004_0465"
+
+  # Pour les Auteurs
+  response.css('.clearfix > a').get()
+  # Récupération du lien -> ça fonctionne
+  response.css('.clearfix > a::text').getall()
+  
+  # Le titre
+  response.css('.fl-post-title::text').getall()
+  
+  # La Rubrique
+  response.css('.article-section::text').getall()
+  
+  # Le numéro
+  response.css('.article-meta::text').getall()
+  
+  # Le résumé
+  response.css('.corps p::text').getall()
+  
+  # Les mots clefs
+  response.css('.motcle::text').getall()
+
+```
+
+## Test d'un spider de scraping d'articles sur un numéro
+Pour vérifier si notre structure est correcte et fonctionne bien. On va tester une spipder sur une page de numéro:
+
+```{python 03_1_Scrapy_Scraper un numéro, python.reticulate = F, eval=F, echo=T}
+import scrapy
+
+
+class ArtPopulationNum(scrapy.Spider):
+    name = "ArtPopulationNum" # Le nom de la spider
+    # Le lien qu'on va scraper.
+    start_urls = [
+        'http://www.revue-population.fr/numero/?numero=POPU_2001'
+    ]
+
+    # Cette fonction récupère le lien des articles et lance la fonction parse_art sur ces liens
+    def parse(self, response):
+        art_page_links = response.css('.summary-title a')
+        yield from response.follow_all(art_page_links, self.parse_art)
+
+    # Cette fonction récupère les informations désirées sur un la page d'un article
+    def parse_art(self, response):
+        # Ne récupère qu'un élement
+        def extract_with_css(query):
+            return response.css(query).get(default='').strip()
+        # Récupère tous les éléments
+        def extract_with_css_all(query):
+            return response.css(query).getall().strip()
+          
+        yield {
+            'titre': extract_with_css_all('.fl-post-title'),
+            'rubrique': extract_with_css('.article-section::text'),
+            'volume_numero': extract_with_css('.article-meta::text'),
+            'auteur': extract_with_css_all('.clearfix > a::text'),
+            'resume1': extract_with_css('.corps p::text'),
+            'motsclefs': extract_with_css_all('.motcle::text'),
+        }
+```
+
+On peut maintenant tester notre spider:
+
+```{python 03_1_Scrapy_Lancer le scrapeur de numéro, python.reticulate = F, eval=F, echo=T}
+
+scrapy crawl ArtPopulationNum -O ArtPopulationNum.json
+
+```
+
+## Spider sur l'ensemble des numéros
+
+On écrit maintenant un spider pour l'ensemble des numéros de la revue population
+
+```{python 03_1_Scrapy_Scraper tout Population, python.reticulate = F, eval=F, echo=T}
+
+import scrapy
+
+class ArtPopulation(scrapy.Spider):
+    name = "ArtPopulation" # Attention de ne pas donner le même nom
+    # Le lien qu'on va scraper
+    start_urls = [
+        'http://www.revue-population.fr/liste-numeros/'
+    ]
+
+    # Cette fonction récupère le lien des numéros et lance la fonction parse_volume sur ces liens
+    def parse(self, response):
+        volume_page_links = response.css('.grid-item a')
+        yield from response.follow_all(volume_page_links, self.parse_volume)
+
+    # Cette fonction récupère le lien des articles sur la page des numéros et lance la fonction parse_art sur ces liens
+    def parse_volume(self, response):
+        art_page_links = response.css('.summary-title a')
+        yield from response.follow_all(art_page_links, self.parse_art)
+
+    # Cette fonction extrait les informations souhaitées sur la page des articles.
+    def parse_art(self, response):
+        def extract_with_css(query):
+            return response.css(query).get(default='').strip()
+
+        def extract_with_css_all(query):
+            return response.css(query).getall().strip()
+
+        yield {
+            'titre': extract_with_css_all('.fl-post-title'),
+            'rubrique': extract_with_css('.article-section::text'),
+            'volume_numero': extract_with_css('.article-meta::text'),
+            'auteur': extract_with_css_all('.clearfix > a::text'),
+            'resume1': extract_with_css('.corps p::text'),
+            'motsclefs': extract_with_css_all('.motcle::text'),
+        }
+
+```
+
+On lance notre spider - Le site population est long à scraper, la spider devrait tourner plusieurs heures.
+
+```{python 03_1_Scrapy_Lancer le Scraping de Population, python.reticulate = F, eval=F, echo=T}
+
+scrapy crawl ArtPopulation -O ArtPopulation.json
+
+```

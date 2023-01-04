@@ -1,0 +1,211 @@
+---
+execute: 
+  warning: false
+  message: false
+  echo: true
+  eval: false
+---
+
+# RVest {#sec-mise-en-application-rvest .unnumbered}
+
+## Création du *scraper*
+
+Le scraper est le robot qui viendra extraire les informations souhaitées d'une page et les enregistrer sur R.
+Pour cela il faut déterminer les éléments qu'on souhaite récupérer et identifier leurs sélecteurs CSS.
+
+On aura besoin des packages suivants:
+```{r}
+#| class.output: output
+library(rvest)
+library(httr)
+library(tidyverse)
+```
+
+Dans notre cas, pour chaque article on souhaite récupérer les informations suivantes:
+  - le nom des auteurs, 
+  - le titre de l'article, 
+  - la rubrique dans laquelle il a été publié, 
+  - dans quel numéro de population et à quelles pages, 
+  - le résumé,
+  - les mots clefs (si il y en a).
+
+Le problème principal du site de population est que selon le type d'article (dans quelle rubrique il a été publié), les selecteurs CSS des éléments susmentionnés ne sont pas forcéments les mêmes. Il faudra donc ajouter de la complexité dans notre scraper pour qu'il récupère les bons sélecteurs.
+
+Notre *scraper* sera une fonction qui extrait les éléments demandés à partir de l'URL d'un article de population et les retourne sous la forme d'une liste.
+
+Les selecteurs CSS de nos éléments sont les suivants:
+  - le nom des auteurs (.clearfix > a), 
+  - le titre de l'article (.fl-post-title), 
+  - la rubrique dans laquelle il a été publié (.article-section), 
+  - dans quel numéro de population et à quelles pages (.article-meta), 
+  - le résumé (.corps p),
+  - les mots clefs (.motcle).
+
+```{r}
+#| class.output: output
+scrapeur <- function(url){
+    page_html <- read_html(url) # On récupère le code html de la page au lien de l'url
+    
+    # On crée la liste qui sortira de la fonction et on y enregistre le lien url de l'article
+    elts <- list(lien_url=url)
+    
+    # On enregistre les auteurs
+    elts[['Auteurs']] <- html_nodes(page_html,'.clearfix > a') %>% html_text
+    
+    elts[['Titre']] <- html_nodes(page_html,'.fl-post-title') %>% html_text
+    
+    elts[['Rubrique']] <- html_nodes(page_html,'.article-section') %>% html_text
+    
+    elts[['Numero_et_pages']] <- html_nodes(page_html,'.article-meta') %>% html_text
+    
+    elts[['Resume']] <- html_nodes(page_html,'.corps p') %>% html_text
+    
+    elts[['Mots_clefs']] <- html_nodes(page_html,'.motcle') %>% html_text
+    
+    elts # Retourne la list() Scrapé sur l'URL
+  }
+```
+
+On peut ensuite tester notre *scraper* sur plusieurs urls d'article de population:
+
+```{r}
+#| class.output: output
+liste_lien <- c('http://www.revue-population.fr/article/?article=POPU_2004_0465',
+                'http://www.revue-population.fr/article/?article=POPU_2004_0467',
+                'http://www.revue-population.fr/article/?article=POPU_2004_0527',
+                'http://www.revue-population.fr/article/?article=POPU_2004_0561',
+                'http://www.revue-population.fr/article/?article=POPU_2004_0591',
+                'http://www.revue-population.fr/article/?article=POPU_2004_0618',
+                'http://www.revue-population.fr/article/?article=POPU_1803_0431',
+                'http://www.revue-population.fr/article/?article=POPU_1803_0467',
+                'http://www.revue-population.fr/article/?article=POPU_1803_0594')
+
+
+test <- lapply(liste_lien, scrapeur)
+
+test[[1]]
+
+```
+
+Notre *scraper* retourne donc bien une liste contenant l'ensemble des éléments souhaitées.
+
+## Ecriture du *crawler*
+
+Le *crawler* est le robot qui va naviguer un site selon des comandes préalablement enregistrées. Dans la pratique, on va créer un *crawler* qui va simplement récupérer les liens URL de tous les articles de population.
+
+Du fait d'une double profondeur du site pour accéder aux articles on va décomposer notre crawler en deux:
+  - Le premier viendra récupérer les urls des pages des numéros de population;
+  - Le second récupérera les urls des articles de chaque numéros de population.
+
+Car dans décomposition, il faut mieux commencer par l'étape la plus fine avant la plus globale, on va d'abord écrire le premier *crawler*
+
+## Récupération des urls des articles d'un numéro
+
+Sur la page des numéros de la revue, les urls des articles sont positionnés aux selecteurs CSS (.summary-title a).
+
+On va créer une fonction qui va à partir de l'url d'un numéro, extraire et enregistrer le lien de chaque article d'un numéro dans un vecteur.
+
+```{r}
+#| class.output: output
+#| 
+crawleur_numero <- function(url_num){
+  
+    url_session <- html_session(url_num) # Ceci permet d'ouvrir le code html
+    
+    url_art <- url_session %>% 
+          html_nodes(".summary-title a") %>% # Permet d'identifier le selecteur '.summary-title a'
+          html_attr("href") # Permet de récupérer le lien url attaché au selecteur
+    
+    url_art
+  }
+
+
+```
+
+On teste notre premier crawler sur une liste de lien de numéro de la revue population:
+
+```{r}
+#| class.output: output
+liste_lien <- c('http://www.revue-population.fr/numero/?numero=POPU_1203',
+                'http://www.revue-population.fr/numero/?numero=POPU_2004',
+                'http://www.revue-population.fr/numero/?numero=POPU_2002',
+                'http://www.revue-population.fr/numero/?numero=POPU_2001',
+                'http://www.revue-population.fr/numero/?numero=POPU_1803')
+
+
+test <- sapply(liste_lien, crawleur_numero)
+
+head(test)
+
+```
+
+On obtient donc bien une liste de vecteur contenant les liens de chaque article par numéro
+
+## Récupération des urls des numéros de la revue
+
+Cette étape du code est assez simple car il s'agit simplement de récupérer les liens d'une seule page, celle qui contient tous les numéros. Comme l'opération n'a pas à être répéter, ce n'est pas la peine de créer une fonction.
+Les liens urls des pages de chaque numéro sont contenu au selecteur (.grid-item a)
+
+```{r}
+#| class.output: output
+
+url_pop_liste_numero <- 'http://www.revue-population.fr/liste-numeros/'
+
+url_session <- html_session(url_pop_liste_numero)
+    
+url_num <- url_session %>% 
+          html_nodes(".grid-item a") %>% 
+          html_attr("href") 
+    
+head(url_num)
+
+```
+
+Pour une raison que je ne parviens pas vraiment à comprendre le selecteur CSS (.grid-item a) contient plusieurs fois les urls des numéros. J'utilise donc une petite manipulation pour supprimer les éléments en double:
+
+```{r}
+#| class.output: output
+
+doublons <- which(duplicated(url_num))
+url_num <- url_num[-doublons]
+
+head(url_num)
+
+```
+
+## Scraping des numéros de population
+
+Il nous suffit ensuite de composer notre code pour extraire les informations souhaitées de chaque article. Comme l'opération peut prendre beaucoup de temps (surtout sur les 356 numéros de population), on va seulement se restreindre au 4 derniers numéros de population (ce qui m'a déjà pris: 1 min 40 pour 47 articles), mais on pourrait, en laissant son ordinateur travailler quelques temps, récupérer les toutes les informations souhaitées.
+
+```{r}
+#| class.output: output
+
+# On ne garde que les 20 derniers numéros
+url_num_f <- url_num[1:4]
+
+# Pour chacun de ces numéros, on extrait les urls de chaque article
+url_arts <- sapply(url_num_f, crawleur_numero)
+
+# url_arts est une liste contenant un vecteur par numéro, ces vecteurs contiennent les liens des articles de chaque numéro. 
+# On fusionne tous ces éléments en un seul vecteur contenant tous les liens de chaque article.
+url_arts <- unlist(url_arts)
+
+# On scrappe ensuite chaque article de ce vecteur
+df <- lapply(url_arts, scrapeur)
+
+df[[1]]
+
+```
+
+On finit avec une liste de liste, chaque article étant enregistrer sous forme de liste. L'avantage d'enregistrer ainsi les données et de maintenir les auteurs et les mots clefs séparés dans des vecteurs, mais on pourrait très bien transformer ces données en DataFrame en séparant auteurs et mots-clefs par des points-virgules:
+
+```{r}
+#| class.output: output
+concateneur <- function(vect_chr){paste(vect_chr, collapse = '; ')}
+conca_list <- function(list){lapply(list, concateneur)}
+dff <- lapply(df, conca_list)
+
+dff <- data.frame(matrix(unlist(dff), nrow=length(dff), byrow=TRUE))
+
+head(dff)
+```

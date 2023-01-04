@@ -1,0 +1,436 @@
+---
+execute: 
+  warning: false
+  message: false
+  echo: true
+  eval: false
+---
+
+# Scrapy {#sec-mise-en-oeuvre-scrapy .unnumbered}
+
+## Description de l'outil
+
+Python, bibliothèques ...etc
+
+
+## Création du projet Scrapy
+
+Après avoir créer un projet PyCharm, que nous avons nommé ici QTSScraping, 
+
+![Nouveau projet Pycharm QTSScraping](img/Scrapy_PyCharmNewProject.png)
+
+voici les étapes que nous allons suivre afin d'effectuer le scraping des citations du site *Quotes to Scrape* : 
+
+* création d'un projet Scrapy,
+* création d'un robot *spider* pour naviguer, extraire et exporter les données souhaitées.
+
+Dans le Terminal de PyCharm, saisissez le code suivant afin de démarrer un projet Scrapy que l'on nommera qts_scraping :
+
+```python
+$ scrapy startproject qts_scraping
+```
+
+![Nouveau projet Scrapy qts_scraping](img/Scrapy_StartProject.png)
+
+:::{.callout-note}
+
+Pas sûr de la pertinence de parler des fichiers créés, à part le spider qu'on met dans spiders
+
+:::
+
+## Création d'un *spider*
+
+Scrapy utilise la notion de `spider`, un robot qui parcours automatiquement le web, pour nommer le robot de scraping que nous allons créé. Ce robot va être codé sous la forme d'une classe, c'est à dire un ensemble de méthodes et de données qui vont nous permettre d'extraire les citations du site *Quotes to Scrape*.
+
+Commençons par créer un nouveau fichier python. 
+Au sein du navigateur de projet de PyCharm, déroulez les répertoires jusqu'au répertoire `spiders` puis faites un `clic droit` et sélectionnez le menu `New/Python File`. Nommez-le `qts_spider`puis appuyez sur `Entrée`.
+
+::: {#ScrapyNewPythonfile layout-ncol=2}
+
+![Nouveau spider](img/Scrapy_NewPythonFile.png)
+
+![Nouveau spider](img/Scrapy_NewPythonFileName.png)
+
+:::
+
+Copiez dans ce fichier le code suivant.
+
+```python
+# Importation du framework Scrapy
+import scrapy
+
+# Création de la classe QuotesSpider qui instancie la classe scrapy.Spider déjà programmée dans Scrapy
+class QuotesSpider(scrapy.Spider):
+    # Saisie du nom du spider, dont nous nous servirons au lancement du scraping
+    name = "qts_citations"
+
+    # Saisie des urls des pages à scraper
+    start_urls = [
+        'https://quotes.toscrape.com/page/1/',
+        'https://quotes.toscrape.com/page/2/',
+        'https://quotes.toscrape.com/page/3/',
+    ]
+
+    # Création de la fonction de parsing
+    # mot-clé self : permet de se référer à l'instanciation de parse
+    # response : instance de `TextReponse`, une méthode qui contient la structure HTML de la page demandée et possède des méthodes pour la traiter
+    def parse(self, response):
+        for qts_citation in response.css('div.quote'):  # Pour chaque citation récupérée à l'aide du sélecteur CSS div.quote ...
+            yield {
+                'citation': qts_citation.css('span.text::text').get(),  # ... Récupération du texte de la citation
+                'auteur_citation': qts_citation.css('small.author::text').get(),  # ... Récupération de l'auteur de la citation
+                'tags_citation': qts_citation.css('div.tags a.tag::text').getall(),  # ... Récupération des tags de la citation
+            }
+```
+
+Afin de lancer le scraping, positionnez-vous dans le répertoire `qts_scraping` et saisissez dans le Terminal de PyCharm la commande 
+
+```python
+$ cd qts_scraping
+```
+Puis, toujours dans le Terminal, lancez le scraping à l'aide de la commande
+
+```python
+$ scrapy crawl qts_citations -O qts_citations.json
+```
+La commande `scrapy crawl qts_citations`permet de lancer et d'effectuer le scraping demandé. La commande `-O qts_citations.json` va quant à elle enregistrer le résultat du scraping dans un fichier `qts_citations.json` au format json. Le `-O` que l'on ajoute indique simplement qu'à l'enregistrement du fichier, si celui-ci existe, il sera écrasé.
+
+Une fois que les données ont été scrapées, vous retrouverez le fichier `qts_citations.json` dans votre répertoire de projet `qts_scraping`.
+
+::: {#ScrapyJSONfile layout-ncol=2}
+
+![Répertoire du fichier de sortie de scraping](img/Scrapy_JSONFile-1.png)
+
+![Fichier de scraping au format JSON](img/Scrapy_JSONFile-2.png)
+
+:::
+
+## Scrapy Ecriture du premier *crawler* 
+
+
+Dans l'exemple suivant, on va voir comment ajouter un crawler à notre *spider* sur scrapy. Pour cela on va simplement reprendre notre projet qts crée précédemment. 
+
+On crée sur PyCharm, comme on l'a déjà vu, un nouveau script Python.
+
+A la différence de notre script précédant qui extrayait les informations sur une liste déterminée de page, on veut ici ajouter un *crawler* qui permettra de suivre les pages.
+
+Pour rappel nos selecteurs CSS sont:
+nos lignes (.quote)
+la citation (.text)
+l'auteur (.author)
+et les tags (.tags)
+L'accès au liens de la page suivante se trouvant sur le selecteur CSS (.next a)
+
+### Tester les sélecteurs et récupérer le lien URL d'un sélecteur.
+
+Comme signalé auparavant, il est préférable de tester notre selecteur avant de l'implanté dans notre spider. Pour cela on ouvre un 'shell' de notre page:
+
+```{python 01_S_Spider 02.1, python.reticulate = F, eval=F, echo=T}
+
+scrapy shell 'http://quotes.toscrape.com/page/1/'
+
+# Pour Windows, ne pas oublier les doubles guillemets
+
+scrapy shell "http://quotes.toscrape.com/page/1/"
+
+```
+
+Une fois le 'shell' ouvert, il est nécessaire de tester notre sélecteur. pour cela, on utilise la commande suivante:
+
+```{python 01_S_Spider 02.2, python.reticulate = F, eval=F, echo=T}
+
+response.css('.next a').get()
+
+# Vous devriez alors obtenir la réponse suivante: 
+
+'<a href="/page/2/">Next <span aria-hidden="true">→</span></a>'
+
+```
+
+Comme on le voit, on récupère ici l'ensemble des éléments. Or on souhaite récupérer seulement le lien URL. Pour cela on précise qu'on ne souhaite récupérer que le lien URL en utilisant l'une des deux manières suivantes:
+
+```{python 01_S_Spider 02.3, python.reticulate = F, eval=F, echo=T}
+
+# Première méthode:
+
+response.css('.next a::attr(href)').get()
+
+# Deuxième méthode:
+
+response.css('.next a').attrib['href']
+
+# Vous devriez alors obtenir la réponse suivante:
+
+'/page/2/'
+
+```
+
+
+### Ecrire le spider
+
+Pour rappel, la spider qui permettait une extraction sur une liste de page donnée était la suivante:
+
+```{python 01_S_Spider 02.4, python.reticulate = F, eval=F, echo=T}
+
+import scrapy
+
+
+class QuotesSpider(scrapy.Spider):
+    name = "Citation_01"
+    start_urls = [
+        'http://quotes.toscrape.com/page/1/',
+        'http://quotes.toscrape.com/page/2/',
+        'http://quotes.toscrape.com/page/3/'
+    ]
+
+    def parse(self, response):
+        page = response.url.split("/")[-2]
+        filename = f'citations-{page}.html'
+        with open(filename, 'wb') as f:
+            f.write(response.body)
+
+
+```
+
+Il s'agit maintenant de créer une spider avec un seul lien et qui pourra aller chercher les liens des pages suivantes elle-même.
+
+
+```{python 01_S_Spider 02.5, python.reticulate = F, eval=F, echo=T}
+
+import scrapy
+
+
+class QuotesSpider3(scrapy.Spider):
+    # On change ici le nom de notre Spider par rapport au premier créée.
+    name = "Citation_03"
+    start_urls = [
+        'http://quotes.toscrape.com/page/1/',
+    ]
+
+    def parse(self, response):
+        for quote in response.css('div.quote'):
+            yield {
+                'text': quote.css('span.text::text').get(),
+                'author': quote.css('small.author::text').get(),
+                'tags': quote.css('div.tags a.tag::text').getall(),
+            }
+
+        # On extrait ici le lien compris au selecteur '.next a'.
+        next_page = response.css('.next a::attr(href)').get()
+        
+        # Si il n'y a pas de next_page (on est arrivé à la fin du site) l'opération précédente retourne None.
+        # On ne veut lancer et faire continuer la Spider que tant qu'il existe des pages suivantes.
+        if next_page is not None:
+          
+            # Comme on l'a vu, le lien url compris dans le selecteur n'est que '/page/2/'.
+            # Il faut donc le connecter au lien de la première page grâce à l'opération suivante.
+            next_page = response.urljoin(next_page)
+            # On rappelle ensuite la méthode 'self.parse' sur le nouveau lien.
+            yield scrapy.Request(next_page, callback=self.parse)
+
+```
+
+Ce nouveau code permet, la méthode 'parse()', après avoir extrait les données, récupère le lien de la page suivante et relance l'opération d'extraction sur la nouvelle page. Ici scrapy va pouvoir suivre des liens et *crawler* / naviguer à travers les pages selon le chemin que vous avez préalablement établi. 
+
+On peut aussi utiliser un raccourci en utilisant la comande 'response.follow()', qui permet de relier directement une URL relative sans utiliser la commande 'urljoin()'.
+
+```{python 01_S_Spider 02.6, python.reticulate = F, eval=F, echo=T}
+
+import scrapy
+
+
+class QuotesSpider3_1(scrapy.Spider):
+    # On change ici le nom de notre Spider par rapport au          premier créée.
+    name = "Citation_03_1"
+    start_urls = [
+        'http://quotes.toscrape.com/page/1/',
+    ]
+
+    def parse(self, response):
+        for quote in response.css('div.quote'):
+            yield {
+                'text': quote.css('span.text::text').get(),
+                'author': quote.css('small.author::text').get(),
+                'tags': quote.css('div.tags a.tag::text').getall(),
+            }
+
+        next_page = response.css('.next a::attr(href)').get()
+
+        if next_page is not None:
+            yield response.follow(next_page, callback=self.parse)
+            
+```
+
+
+
+### Scraper un nombre limité de page
+
+Ici, notre spider va scraper et naviguer sur des pages tant qu'il y en a. Le site Quotestoscrape, que l'on scrape, a un nombre réduit de page, donc ce n'est pas un problème. Mais parfois, certains sites à scraper peuvent avoir des centaines de pages, que l'on ne souhaite pour autant pas forcément toutes scraper. Un moyen de réduire le nombre de page à scraper, peut-être de rajouter une condition comme ce qui suit:
+
+
+```{python 01_S_Spider 02.7, python.reticulate = F, eval=F, echo=T}
+
+import scrapy
+
+
+class QuotesSpider3_2(scrapy.Spider):
+    # On change ici le nom de notre Spider par rapport au          premier créée.
+    name = "Citation_03_2"
+    start_urls = [
+        'http://quotes.toscrape.com/page/1/',
+    ]
+    i = 0
+
+    def parse(self, response):
+        for quote in response.css('div.quote'):
+            yield {
+                'text': quote.css('span.text::text').get(),
+                'author': quote.css('small.author::text').get(),
+                'tags': quote.css('div.tags a.tag::text').getall(),
+            }
+
+        next_page = response.css('.next a::attr(href)').get()
+
+        # ce qui indiquera donc le nombre de page que l'on souhaite scraper
+        if next_page is not None and i < 5:
+            i += 1
+            next_page = response.urljoin(next_page)
+            yield scrapy.Request(next_page, callback=self.parse)
+
+
+
+```
+
+
+### Lancer nos spiders
+
+On peut maintenant tester nos trois spider:
+
+```{python 01_S_Spider 02.8, python.reticulate = F, eval=F, echo=T}
+
+# Le premier
+
+scrapy crawl Citation_03 -O citations_03.json
+
+# Le second
+
+scrapy crawl Citation_03_1 -O citations_03_1.json
+
+# Le troisième
+
+scrapy crawl Citation_03_2 -O citations_03_2.json
+
+```
+
+
+On obtient bien un fichier Json complet pour les deux premiers, et avec seulement les cinq premières pages pour le troisième.
+
+![QTS Json Scrapy](./images/03/Scrapy/Citation_json.png)
+
+
+
+## Le scraping des auteurs
+
+On va maintenant voir comment réaliser ce même scraping avec Scrapy sur python.
+
+L'objectif ici est de crée une spider qui va partir de la page principale de QuoteToScrape, suivre les liens des pages des auteurs et extraire les informations de ces pages. Puis aller sur les pages suivantes de la page principale.
+
+On reste ici dans le même projet Scrapy.
+
+
+### Tester les sélecteurs et récupérer le lien URL d'un sélecteur.
+
+Avant tout, comme auparavant, on teste nos selecteurs.
+
+```{python 01_S_Spider 02.1, python.reticulate = F, eval=F, echo=T}
+
+# Dans le terminal, on lance:
+
+scrapy shell 'http://quotes.toscrape.com/page/1/'
+
+# Pour Windows, ne pas oublier les doubles guillemets
+
+scrapy shell "http://quotes.toscrape.com/page/1/"
+
+```
+
+On a déjà testé la plupart de nos selecteurs, il nous faut simplement testé la bonne récupération du lien des pages des auteurs.
+
+```{python 01_S_Spider 02.2, python.reticulate = F, eval=F, echo=T}
+
+response.css('.quote span a').get()
+
+## Vous devriez alors obtenir la réponse suivante: 
+
+'<a href="/author/Albert-Einstein">(about)</a>'
+
+# Récupération du lien
+
+response.css('.quote span a::attr(href)').get()
+
+## Vous devriez obtenir ce résultat.
+
+'/author/Albert-Einstein'
+
+```
+
+
+### Ecriture du *spider*
+
+Ce *Spider* comprend deus fonction. D'abord une fonction parse qui vient récupérer dans un premier temps les liens des pages des auteurs, les suit et lance la fonction parse_auteur; et, dans un second temps, récupère ceux des pages suivantes et relance la fonction parse. 
+Une seconde, parse_auteur, vient extraire les informations souhaitées des pages des auteurs.
+
+```{python 01_S_Spider 02.4, python.reticulate = F, eval=F, echo=T}
+
+import scrapy
+
+
+class AuteurSpider(scrapy.Spider):
+    name = 'Auteur' # Nom du spider
+
+    start_urls = ['http://quotes.toscrape.com/'] # Page de départ du spider
+
+    # Cette fonction suit en fait la page principale
+    def parse(self, response): 
+        # On récupère le lien de la page des auteurs
+        author_page_links = response.css('.quote span a')
+        # On va sur ce lien et on y lance le scrapeur self.parse_auteur
+        yield from response.follow_all(author_page_links, self.parse_auteur)
+
+        # On récupère le llien de la page suivante
+        pagination_links = response.css('li.next a')
+        # Sur la page suivante on relance la fonction parse
+        yield from response.follow_all(pagination_links, self.parse)
+
+    # Cette fonction vient extraire les informations choisies depuis la page des auteurs
+    def parse_auteur(self, response):
+        # Fonction pour l'extraction depuis un selecteur CSS
+        def extract_with_css(query):
+            return response.css(query).get(default='').strip()
+
+        # Récupération des informations souhaité depuis les CSS
+        yield {
+            'Nom': extract_with_css('.author-title::text'),
+            'DateDeNais': extract_with_css('.author-born-date::text'),
+            'LieuDeNais': extract_with_css('.author-born-location'),
+            'Bio': extract_with_css('.author-description::text'),
+        }
+
+```
+
+
+### Lancer nos spiders
+
+On peut maintenant tester notre spider:
+
+```{python 01_S_Spider 02.8, python.reticulate = F, eval=F, echo=T}
+
+scrapy crawl Auteur -O Auteur.json
+
+
+```
+
+
+On obtient bien un fichier Json complet.
+
+![QTS Json Scrapy](./images/4/scrapy/auteurs.png)

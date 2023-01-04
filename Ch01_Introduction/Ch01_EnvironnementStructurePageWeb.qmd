@@ -1,0 +1,223 @@
+# Environnement et structure d’une page web {#sec-introduction-environnement-structure-web .unnumbered}
+
+Naviguer au sein d’une base de données d’un éditeur de revues, un site web institutionnel, ou même sur un quelconque site de vente en ligne ou un média, est devenu une action somme toute très courante, qui a été rendue assez simple grâce à l’évolution des interfaces des pages web que nous consultons et des technologiques des navigateurs que nous utilisons. En revanche, s’attaquer à l’extraction de données conversationnelles ou de commentaires en ligne, esquisser les contours de l’écosystème du site web d’un parti politique, ou toute autre méthode destinée à produire les données numériques originales dont nous aurions besoin dans certains projets de SHS, peut s’avérer une tâche fastidieuse sans un minimum de connaissances techniques sur l’environnement où sont hébergées ces données : le web.
+
+## Qu’est-ce que le web ?
+
+Le Larousse nous donne la définition suivante du web : c’est un « Système hypermédia permettant d'accéder aux ressources du réseau Internet ». Ce qui par conséquent veut dire que le web n’est pas Internet, mais qu’il permet en revanche d’accéder à ses ressources. 
+Le même Larousse nous dit à propos d’Internet qu’il est un « Réseau télématique international […] résultant de l'interconnexion d'ordinateurs du monde entier utilisant un protocole commun d'échanges de données ». 
+
+Internet est donc un ensemble d’ordinateurs, connectés les uns aux autres, qui vont pouvoir s’échanger des informations à distance grâce à des règles de communication qui leur sont communes. 
+Nous n’allons pas vous détailler ici la façon dont fonctionne un ordinateur. Sachez simplement qu’à travers les ordinateurs, ce sont aussi les applications, les logiciels, qui sont connectés les uns aux autres et qui dialoguent les uns avec les autres. 
+Au sein de ce dialogue, on appelle client la machine qui demande une information, et serveur, la machine qui la lui fournit. Internet est donc constitué de nombreux serveurs et clients, reliés les uns aux autres.
+Et c’est là un des concepts fondamentaux d’Internet, les informations qui transitent ne sont pas toutes hébergées au même endroit, en un seul lieu. Elles ne sont pas centralisées, on dit qu’elles sont distribuées, c’est à dire réparties sur tout un tas d’ordinateurs, disséminés dans le monde entier. 
+
+Internet est par conséquent une infrastructure physique et informatique qui va proposer un ensemble de services de communication fiables et sûrs à des applications variées. Citons pêle-mêle : le courrier électronique, la messagerie instantanée, le streaming, le peer-to-peer, ou, ce qui nous intéresse particulièrement ici, le world wide web, plus communément appelé, le web. 
+Le web n’est qu’un des nombreux usages que l’on peut avoir d’Internet. 
+Reprenons la définition de tout à l’heure : le web est un « système hypermédia permettant d’accéder aux ressources d’Internet ». 
+Le mot important est ici hypermédia. Qu’est-ce qu’un hypermédia ? 
+
+Toujours selon le Larousse, c’est un « système permettant […] de passer d’un document à un autre selon des chemins préétablis ».  
+Dico.fr nous précise un peu plus la nature de ce système : c’est un « mode d’organisation des documents [textuels] informatisés caractérisé par l’existence de liens dynamiques entre ses différentes sections ». 
+Ce qui veut dire que ce dispositif permet de parcourir de manière non-linéaire les sections d’un document grâce à certains éléments du texte qui vont contenir une référence, ou un renvoi, vers un autre élément de ce même texte.
+On ne parle ici que de « sections », car à l’origine, le système d’hyperliens a été conçu pour naviguer au sein d’un même document, dans le but de laisser le lecteur décider de son cheminement en fonction de ses besoins ou de ses intérêts. 
+Mais lorsque ce concept est choisi au début des années 90 pour en faire le principe de navigation au sein de différents documents reliés entre eux et accessibles via Internet, on assiste à la réelle naissance du web tel qu’on le connaît actuellement. 
+
+Le web est ainsi issu de la rencontre entre deux technologies : 
+-	Un réseau d’ordinateurs reliés les uns aux autres : l’Internet
+-	Un système de navigation par liens sur référence au sein de documents : l’hypertexte
+
+Pour permettre l’écriture de ces documents, que l’on peut appeler dorénavant « page web », pouvant être liés les uns aux autres par des liens hypertexte, il faut un langage. Le HTML a été créé pour répondre à cette attente : c’est lui qui va donner sa structure de base à une page web.
+
+## HTML: le langage du web
+
+### Les éléments HTML
+
+Le HTML (HyperText Markup Langage – langage de balises pour l’hypertexte) défini la disposition des contenus sur une page à l’aide de balises. Ces balises sont de deux types : 
+
+*	Les balises ouvrantes `< >` 
+*	Les balises fermantes `</ >`, qui ont un slash pour indiquer la fermeture.
+
+Ces deux balises, qui fonctionnent la plupart du temps toujours ensemble, désignent ce que l’on appelle un élément. Pour employer une analogie un peu simpliste, il faut imaginer le fonctionnement du HTML comme le système de parenthèses que l’on utilise en mathématiques : la parenthèse ouvrante est la balise ouvrante HTML, la formule mathématique est le contenu, la parenthèse fermante est la balise fermante HTML.
+
+Prenons un exemple avec l’élément `p` qui définit un paragraphe : afin d’indiquer le commencement d’un paragraphe sur notre page web, on écrira :
+```html
+<p>
+```
+
+A la suite de cette indication, on écrira le texte du paragraphe. Puis on indiquera la fin du paragraphe par une balise fermante : 
+```html
+<p>Un paragraphe</p>
+```
+
+De la même manière, un lien hypertexte sera encadré d’une balise ouvrante `<a>` (comme anchor en anglais, ce qui veut dire ancre), puis le texte du lien, puis une balise fermante `</a>`.
+Le texte, l’image, ou tout autre contenu, que l’on veut afficher sur sa page web, sera donc encadré par l’une des 120 et quelques balises HTML existantes.
+
+```html
+<a>Un lien vers l’INED</a>
+```
+
+On a coutume de dire que le HTML est un langage imbriqué. Au même titre que les parenthèses en mathématiques, on pourra imbriquer plusieurs balises pour définir plus finement un élément. Dans l’exemple précédent, si l’on insère le lien et l’image chacun dans un paragraphe, on aura un petit aperçu de ces balises HTML imbriquées.
+```html
+<p>
+  <a>Un lien vers l'INED</a>
+</p>
+<p>
+  <img>
+</p>
+```
+De nombreux contenus, comme les listes à puces : 
+```html
+<ul>
+  <li>Un premier item de liste</li>
+  <li>Un 2ème item de liste</li>
+  <li>Un 3ème item de liste</li>    
+</ul>
+```
+ou les tableaux : 
+```html
+<table>
+  <tr>
+    <td>Une première cellule : 1ère ligne, 1ère colonne</td>
+    <td>Une deuxième cellule : 1ère ligne, 2ème colonne</td>
+  </tr>
+    <td>Une troisième cellule : 2ème ligne, 1ère colonne</td>
+    <td>Une quatrième cellule : 2ème ligne, 2ème colonne</td>
+  </tr>
+</table>
+```
+nécessitent une structure en balises imbriquées. Cette imbrication arborescente est communément appelée « arbre », en référence à un arbre généalogique. Dans l’exemple du tableau ci-dessus :
+
+* le premier élément <table> que l’on déclare est appelé ancêtre. C’est également le parent des éléments qui en descendent directement, à savoir les deux balises `<tr>`.
+* les élément `<tr>` et `<td>` sont des descendants de `<table>`. Chaque `<tr>` est enfant de `<table>`, et chaque `<td>` est enfant de son parent direct `<tr>`.
+
+
+::: {#arbre-html layout-ncol=2}
+
+![Un ancêtre et ses descendants](img/arbre_html.png){#fig-1}
+
+![Un parent et ses enfants](img/arbre_html-2.png){#fig-2}
+
+Hiérarchie HTML
+:::
+
+:::{.callout-note}
+
+ajouter des span, des a pour encore plus d’imbrication ?
+
+:::
+
+### Les attributs des éléments HTML
+
+Les éléments HTML ont des propriétés. Ces propriétés sont de deux types : le contenu, c’est ce que l’on vient de voir plus haut, qui peut être du texte, une image, une vidéo par exemple, et les attributs. Les attributs vont venir compléter les éléments en les définissant plus précisément ou en apportant des informations supplémentaires sur leur comportement. 
+
+Par exemple, l’élément `<a>`, qui figure un lien hypertexte, va avoir un attribut `href`, qui signifie `hypertext reference`, et qui va permettre de préciser la cible du lien, c’est à dire la page, ou l’élément au sein de la page, de destination du lien. L’élément `<a>` s’écrira donc :
+```html
+<a href="https://www.ined.fr">Un lien vers l’INED</a>
+````
+
+Le lien pointe dorénavant vers une page cible dont l’adresse est `https://www.ined.fr`, il devient actif.
+
+Autre exemple, l’élément `<img>`, qui définit une image, va avoir un attribut `src`, qui signifie source, et qui va permettre de préciser la source de l’image, c’est à dire l’adresse à laquelle il faut aller chercher l’image pour qu’elle s’affiche : 
+```html
+<img src="https://www.ined.fr/img/logo.svg">
+````
+
+Dans cet exemple, le logo de l’INED `logo.svg` qui est situé à l’adresse `https://www.ined.fr/img/` s’affiche sur la page web où l’on a intégré cette balise `<img>`.
+
+#### L’attribut `class`
+
+L’attribut `class` a un statut un peu particulier car il a été créé spécifiquement pour rassembler au sein d’une même classe des éléments ayant des propriétés de style communes. Un style est une mise en forme de l’élément, comme par exemple la couleur ou la taille du texte de son contenu, la couleur de son arrière-plan, son encadrement ... etc.
+
+Admettons que le créateur d’une page web veuille rassembler sous une même classe les liens vers des instituts de recherche pour leur appliquer un style particulier, par exemple un texte blanc sur fond noir, il pourra écrire le code suivant :
+
+```html
+<a href="https://www.ined.fr" class="lien_institut_recherche">
+<a href="https://www.cnrs.fr" class="lien_institut_recherche">
+<a href="https://www.inrae.fr" class="lien_institut_recherche">
+````
+
+Il n’aura ensuite qu’à définir dans une feuille de styles les propriétés et les valeurs pour la classe « lien_institut_recherche ». Cette feuille de style sera écrite en CSS (Cascading Style Sheets – Feuilles de style en cascade) de la façon suivante :
+
+```css
+.lien_institut_recherche {
+  color: white;
+  background-color: black;
+}
+````
+
+Le point `.` précédent `lien_institut_recherche` indique ici que l’on va définir la classe `lien_institut_recherche`. Cette définition contient deux propriétés, la couleur du texte (`color`) et la couleur d’arrière-plan (`background-color`), auxquelles ont été attribuées deux valeurs, blanc pour le texte et noire pour l’arrière-plan.
+
+## Interroger la structure HTML pour en scraper le contenu
+
+Nous l’avons déjà dit plus haut, le HTML va servir à définir la structure d’une page web et y ajouter du contenu. Il dispose sur la page un titre, puis un sous-titre, un paragraphe, puis indique que tel ensemble de données sera affiché sous la forme d’un tableau, que telle image sera affichée en-dessous ou au-dessus de tel paragraphe ...etc. 
+
+Scraper une page web revient par conséquent à interroger sa structure HTML afin d’en extraire le contenu. Plusieurs langages, ou librairies de langages, sont capables d’effectuer de telles requêtes. Dans ce qui suit, nous allons nous intéresser aux deux langages qui sont les plus utilisés par les logiciels, API ou bibliothèques de scraping existants : CSS et XPath.
+
+### La sélection d’éléments HTML : CSS
+
+Comme nous l’avons entraperçu précédemment, le langage CSS a été développé pour prendre en charge la mise en forme de la structure HTML d’une page web. En effet, à la fin du processus de création de la page web, il n’y a qu’un corps nu, sans habits : pas de motif d’arrière-plan, pas de couleurs ou de taille de police, pas de retrait, de surlignage ou de soulignage de paragraphe, pas d’encadrement de tableaux, en un mot, pas de styles. C’est le CSS qui va se charger de l’habillage de ce squelette. 
+
+CSS va cibler des contenants, c’est à dire des éléments HTML, à l’aide d’un sélecteur, qui est un mot-clé permettant de désigner un élément ou une catégorie d’éléments HTML de la page. Il existe différents types de sélecteurs :
+
+* Les sélecteurs simples, qui sont des sélecteurs qui ciblent directement les éléments HTML par leur nom ou leur attribut ;
+* Les sélecteurs complexes, qui font appel à une syntaxe plus évoluée en combinant différentes propriétés HTML.
+
+Par exemple, afin de cibler tous les liens `<a>` au sein d’une page web, le code CSS se résumera à écrire le nom de l’élément à cibler :
+```css
+a
+````
+
+Pour sélectionner les liens présents sur une page web et qui pointent vers le site de l’INED, il suffira d’utiliser le sélecteur d’attribut `[attr*=valeur]` qui signifie « dont l’attribut contient valeur », qui se traduit ici par « dont l’attribut href contient le terme "www.ined.fr" » : 
+```css
+a[href*="www.ined.fr"]
+````
+
+Enfin, si l’on reprend l’exemple précédent et que l’on veut sélectionner les liens ayant pour classe « lien_institut_recherche », il faudra écrire :
+
+```css
+.lien_institut_recherche
+````
+
+### La sélection d’éléments HTML : XPath
+
+Le langage XPath (XML Path Language – Langage de chemin XML) a été développé à l’origine pour permettre de naviguer au sein d’un document XML (Extensible Markup Language – Langage de balisage extensible). Le XML est un langage informatique très proche du HTML, qui donne à ses utilisateurs la possibilité de développer leur propre langage à l’aide de balises génériques. 
+
+De la même manière que CSS, XPath a également la faculté de cibler des éléments HTML en utilisant des sélecteurs, qui seront les mêmes qu’en CSS, mais dans une syntaxe légèrement différente. Ainsi, les 3 exemples précédents s’écriront en XPath :
+
+```xml
+//a
+//a[contains(@href, "www.ined.fr")]
+//*[contains(@class, "lien_institut_recherche")]
+````
+
+L’étoile (*) de la ligne 3 signifie que l’on effectue une recherche au sein de la totalité de la structure HTML de la page web.
+
+## La place relative d’un élément au sein de l’arborescence HTML
+
+Nous venons de voir l’importance des attributs HTML dans le ciblage précis d’éléments n’importe où dans la structure de la page web. Dans la plupart des cas, ceux-ci suffiront à garantir une sélection pertinente des éléments à scraper. 
+
+Mais que faire si l’élément que nous voulons extraire ne contient aucun attribut ? Nous avons vu tout à l’heure qu’une page HTML était structurée de manière arborescente, avec des ancêtres et des descendants. Cette caractéristique va nous conduire à être en capacité de sélectionner un élément relativement à un autre, selon qu’il est parent, enfant, ou voisin d’un autre élément.
+
+Admettons le code suivant :
+```html
+<p class="paragraphe_1">
+  <h1>Titre du paragraphe</h1>
+  <p>Texte du paragraphe</p>
+</p>
+````
+
+Nous voulons ici extraire le texte du titre, encapsulé dans une balise `<h1>`. Cet élément n’a pas d’attribut, nous allons donc devoir remonter à son ancêtre, en l’occurrence son parent direct, `<p>` qui, lui, possède un attribut `class` de valeur `paragraphe_1`. En CSS, la sélection s’effectuera dons ainsi :
+
+```css
+p.paragraphe_1 > h1
+````
+
+Ici, le caractère `supérieur à` (>) indique que `h1` est un descendant direct de `p` de classe `paragraphe_1`.
+
+En XPath, l’écriture sera la suivante : 
+```html
+p[contains(@class, "paragraphe_1")]/h1
+````
+
+La descendance directe s’exprime ici à l’aide d’un simple slash (`/`).

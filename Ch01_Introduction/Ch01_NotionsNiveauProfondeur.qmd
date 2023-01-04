@@ -1,0 +1,65 @@
+# Notion de niveau et de profondeur {#sec-introduction-notion-niveau-profondeur .unnumbered}
+
+Nous avons vu dans le chapitre précédent comment une page HTML se structurait de manière arborescente. Regardons ici comment s’organise un site web. Nous nous baserons dans ce chapitre sur le site *Quotes to Scrape* ([http://quotes.toscrape.com/](http://quotes.toscrape.com/) qui va nous servir de bac à sable de nos futurs scrapings.
+
+Le site *Quotes to scrape* est un site qui présente tout un ensemble de citations, auxquelles sont attachées des fiches biographiques. C’est un site développé pour présenter une structure HTML relativement facile à scraper dans le but de s’entrainer à cette méthode.
+
+## Notion de niveau de page
+
+Lorsque l’on arrive sur la page d’accueil du site, c’est à dire la page qui est à la racine du site, nous nous trouvons directement face à une liste de citations : 
+
+![Page d'accueil du site *Quotes to Scrape*](img/Ch01_C_QuoteToScrapeWebsite.png)
+
+En bas de page se situe un bouton `Next` de pagination qui nous permet de naviguer sur différentes autres pages de citations :
+
+::: {#QuotesToScrape layout-ncol=3}
+
+![Page 2 : citation 11 à 20](img/Ch01_C_QuoteToScrapeWebsite_p2.png)
+
+![Page 3 : citation 21 à 30](img/Ch01_C_QuoteToScrapeWebsite_p3.png)
+
+![Page 4 : citation 31 à 40](img/Ch01_C_QuoteToScrapeWebsite_p4.png)
+
+:::
+
+Parallèlement, nous pouvons apercevoir la pagination des citations se matérialiser dans la barre d’adresse du navigateur :
+
+::: {#QuotesToScrapeUrl layout-nrow=4}
+
+![](img/Ch01_C_QuoteToScrapeUrl.png)
+
+![](img/Ch01_C_QuoteToScrapeUrl_p2.png)
+
+![](img/Ch01_C_QuoteToScrapeUrl_p3.png)
+
+![](img/Ch01_C_QuoteToScrapeUrl_p4.png)
+
+:::
+
+Nous pouvons schématiser cette structure de la façon suivante : 
+
+![Le niveau 0 du site *Quotes to Scrape*](img/Ch01_C_QuoteToScrapeWebsiteStructureLevel0.png)
+
+Le `niveau 0` est le niveau de la page de départ du site. Les pages suivantes demeurent à ce même niveau 0 que la page de départ, car nous y accédons par un simple lien de pagination. 
+
+La similarité de niveau se retrouve également dans la structure HTML de toutes les pages de citations : à chaque itération de page, nous voyons parfaitement que la structure HTML est la même, et que seul le contenu change.
+
+## Notion de profondeur de page
+
+Pour chaque citation du site *Quotes to Scrape*, nous pouvons lire : 
+
+* le texte de la citation (en rouge) ;
+*	le nom et prénom de l’auteur (en bleu) ;
+*	et une liste d’étiquettes, tags en anglais, qui catégorisent la citation (en vert) 
+
+![Détail des citations du site *Quotes to Scrape*](img/Ch01_C_QuotesToScrape_ElementsAExtraire.png)
+
+En cliquant sur le lien `about` à côté du nom d’un auteur, nous sommes dirigés vers la biographie de l’auteur. De la même manière, en cliquant sur un des `Tags`, nous sommes dirigés vers un regroupement des citations qui ont été catégorisées sous le même tag cliqué : 
+
+![Détail des liens "about" et "Tags"](img/Ch01_C_QuotesToScrape_AboutLink.png)
+
+Notre schéma évolue. En cliquant sur un lien de biographie situé sur la page de départ, nous avons pénétré plus profondément dans l’arborescence du site et avons atteint le niveau -1. En cliquant sur le lien de tag, qui est également situé sur la page de départ, nous avons rejoint ce même niveau -1, mais par un autre chemin, toujours situé à un clic de la page de départ :
+
+![Les niveaux 0 et -1 du site *Quotes to Scrape*](img/Ch01_C_QuoteToScrapeWebsiteStructureLevel0And-1.png)
+
+Il est important d’avoir ce schéma en tête lorsque nous allons réaliser le scraping des données de ce site. Plus généralement, il faut garder à l’esprit que les sites web sont toujours construits de la même façon : une page ou des pages situées à un niveau 0, qui contiennent des liens qui nous amènent sur des pages de niveaux inférieurs, qui elles-mêmes contiennent des liens qui nous amènent sur des pages de niveaux inférieurs, ...etc.

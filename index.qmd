@@ -1,0 +1,26 @@
+# Preface {.unnumbered}
+
+Les données du Web représentent une source inédite pour les chercheurs en sciences sociales. Ces données peuvent constituer aussi bien des compléments aux enquêtes "traditionnelles" en rendant compte de pratiques "en train de se faire", que des matériaux originaux et divers pour l'analyse de thèmes aussi divers variés que le sont les sites internet: de l'analyse des marchés matrimoniaux grâce aux profils sur les sites de rencontres, à celle des médias grâce aux articles de journaux ou de billets associatifs en passant par celle des représentations grâce aux réseaux sociaux. Maîtriser les techniques d'extraction de contenus, de scraping, rend possible la constitution de ces grandes bases de données.
+
+Ce manuel s'adresse à tous ceux qui sont amenés à extraire des données du Web, quel que soit leur niveau de connaissances en language Web, informatique et statistique. Il présente de manière didactique et illustrée par de nombreux exemples les éléments clés du scraping et de sa mise en œuvre à partir de logiciels accessibles librement dont la difficulté d'utilisation varie avec les possibilités offertes : 
+
+* Extractify, un logiciel à interface, développé par Frédéric Vergnaud, accessible à ceux qui ne maîtrisent pas le codage; 
+* RVest, développé par Hadley Wickham, un paquet fonctionnant avec le langage R; 
+* Scrapy, un module fonctionnant avec le langage Python; 
+* RSelenium, d'un usage plus complexe, mais plus performant car permettant le scraping de données situées en aval de la saisie d'un mot de passe utilisateur par exemple, et fonctionnant également avec le langage R.
+
+Le manuel explique non seulement comment extraire des données du Web, mais aussi comment les nettoyer, les préparer et les traiter, en proposant une application d'analyse textuelle avec le paquet de R, R.temis, développé par Milan Bouchet-Valat. Il expose ainsi au lecteur une application du scraping de A à Z, de l'extraction au traitement et à l'interprétation, en passant par le nettoyage et la préparation des données.
+
+La collecte d'informations sur le Web n'est néanmoins pas une solution miracle et pose un certain nombre de limites aussi bien juridiques que scientifiques sur lesquelles ce manuel revient. L'extraction de données Web demande en outre de comprendre le fonctionnement d'internet et la manière dont est structurée une page web pour déterminer l'outil le plus adapté à son scraping.
+
+Le manuel est organisé en cinq chapitres.
+
+Dans le premier chapitre sont présentés les éléments nécessaires à la préparation au scraping. Il traite d'abord des questions juridiques et éthiques relatives à l'extraction et l'utilisation de données issues du Web, ainsi que des conseils relatifs à nos expériences. Il explique ensuite succinctement le fonctionnement d'internet, les éléments du langage HTML à maîtriser pour réaliser du scraping et la structuration générale d'un site web.
+
+Le chapitre suivant présente une mise en application pas-à-pas de chaque outil sur un site stable et unique fondé et maintenu par l'équipe de Scrapy spécifiquement pour l'entraînement au scraping : [Quotes to Scrape](http://quotes.toscrape.com/). Chacun de ces outils est décrit en trois étapes relatives à trois niveaux de complexité. À chaque étape sont présentés les éléments préalables de préparation, puis la réalisation du scraping. Les explications sont accompagnées du code -- lorsqu'il s'agit d'un outil utilisant R ou Python -- et d'images des captures d'écran.
+
+Le chapitre 3 met en application l'extraction de données sur deux sites, celui de la revue Population et celui du HAL SHS. Il présente ainsi une utilisation appliquée des outils en exposant les soucis et erreurs qui peuvent survenir, mais aussi des méthodes spécifiques relatives à des sites particuliers.
+
+Le chapitre 4 présente les questions relatives au nettoyage et à la préparation des données pour leur traitement. Il explique succinctement les types de données obtenues grâce au scraping, leurs avantages et désavantages, puis des méthodes pour leur nettoyage en utilisant notamment les expressions régulières ("REGEX"). Ce nettoyage est illustré par une application aux données récupérées.
+
+Enfin, le 5ème et dernier chapitre expose la manière dont peut être appliquée l'analyse textuelle à des données scrapées à l'aide du paquet R.temis. On proposera finalement une interprétation, ainsi que des aides à l'interprétation, de nos données.

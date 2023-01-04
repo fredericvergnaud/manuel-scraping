@@ -1,0 +1,7 @@
+# Introduction {#sec-mise-en-oeuvre-introduction .unnumbered}
+
+Dans ce chapitre de mise en oeuvre du scraping, constitué d'autant de parties que d'outils testés, nous allons distinguer à chaque fois 3 phases distinctes : 
+
+* Une première phase de scraping simple d'une page web. Cette phase va permettre d'aborder la plupart des notions mises en oeuvre dans l'extraction d'informations du web.
+* Une seconde phase d'extension d'un scraping d'un seule page web à un scraping plus complexe de plusieurs pages web mais toujours situées au même niveau. Excepté pour Extractify, nous nous attacherons donc dans cette phase à écrire des scripts de `crawlers`.
+* Enfin, dans une dernière phase, nous complexifierons encore notre code en intégrant le scraping de pages situées à différentes profondeurs du site web.

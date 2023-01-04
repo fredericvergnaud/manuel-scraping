@@ -1,0 +1,424 @@
+---
+execute: 
+  warning: false
+  message: false
+  echo: true
+  eval: false
+---
+
+# RSelenium {#sec-mise-en-oeuvre-scrapy .unnumbered}
+
+## Description de l'outil
+
+Le serveur RSelenium va permettre le pilotage à distance, c'est à dire depuis R, d'un navigateur web. Pour cela, nous aurons besoin d'un `driver`, c'est à dire un ensemble d'instructions qui vont permettre à RSelenium de dialoguer avec le navigateur en langage R. Rappelons ici que l'utilisation de RSelenium sera privilégiée en cas de données web difficiles à extraire à cause par exemple de mots de passe à fournir ou de données générées dynamiquement à la navigation.
+
+## Définition d'un scraper
+
+```{r}
+#| class.output: output
+#| output: false
+# Chargement du package RSelenium
+library(RSelenium)
+
+# Création du pilote
+rD <- rsDriver(browser="firefox", port=4548L) # Si le port indiqué ne fonctionne pas, saisissez-en un autre au hasard jusqu'à ce que ça fonctionne
+```
+
+Lors du premier lancement, cette étape devrait télécharger tout un ensemble de packages nécessaires au bon fonctionnement de RSelenium, notamment une version allégée de Firefox.
+
+![Téléchargement des packages nécessaires à l'exécution de RSelenium](img/RSelenium_packages.png)
+
+
+Puis elle se conclue sur l'ouverture d'une fenêtre du navigateur `Firefox`.
+
+Nous allons maintenant stocker l'instance de `Firefox` que nous avons ouvert dans une variable que nous pourrons manipuler plus aisément.
+
+```{r}
+remDr <- rD$client
+```
+
+Nous allons ensuite indiquer une url afin que Firefox ouvre la page qui contient les informations que nous voulons scraper.
+
+```{r}
+remDr$navigate("https://quotes.toscrape.com/")
+```
+
+Puis sélectionner les citations que l'on souhaite extraire à l'aide de la méthode `findChildElement` à laquelle nous fournissons en variable notre sélecteur CSS `.quote`.
+
+```{r}
+# Création d'une variable elements_citations de stockage des éléments sélectionnés
+# elements_citations est un objet liste
+elements_citations <- remDr$findElements("css", ".quote")
+```
+
+Dans la suite, nous allons d'abord extraire la première citation, puis de cette citation les éléments auteur, texte et étiquettes.
+
+```{r}
+#| class.output: output
+# Extraction de la première citation
+element_citation_1 <- elements_citations[[1]]
+
+# Extraction de l'élément HTML qui contient l'auteur de la première citation à l'aide du sélecteur CSS .author
+# element_auteur_citation_1 est retourné sous forme de *webElement* qui est un objet particulier d'élément web proposé par RSelenium pour en faciliter l'accès
+element_auteur_citation_1 <- element_citation_1$findChildElement("css selector", ".author")
+# Affichage
+# La méthode *getElementText()* extrait le texte de l'élément sous forme de liste
+# Nous en simplifions l'affichage sous forme d'un vecteur
+unlist(element_auteur_citation_1$getElementText())
+
+# Nous exécutons les mêmes commandes ...
+# ... Pour le texte de la citation
+element_texte_citation_1 <- element_citation_1$findChildElement("css selector", ".text")
+unlist(element_texte_citation_1$getElementText())
+
+# ... Pour les étiquettes de la citation
+# Il est à noter ici l'utilisation de la méthode *findChildElements* au pluriel car nous sommes en présence de plusieurs éléments étiquettes, et d'une boucle pour en afficher la totalité
+elements_tags_citation_1 <- element_citation_1$findChildElements("css selector", ".tag")
+unlist(lapply(elements_tags_citation_1, function(x){
+  x$getElementText()
+}))
+```
+
+Nous savons maintenant comment fonctionne l'extraction de l'auteur, du texte et des étiquettes d'une citation à l'aide de RSelenium. Pour simplifier les opérations à effectuer et disposer d'un robot scraper automatisé, nous allons créer plusieurs fonctions génériques :
+
+* `selection_extraction` qui va automatiser la sélection et l'extraction d'éléments à l'aide d'un sélecteur CSS passé en variable
+* `scraper_qts` qui va automatiser la sélection et l'extraction d'éléments à partir d'une liste de sélecteurs CSS sélectionnés sur *Quotes to Scrape* passée en variable
+* `scrape` qui va automatiser le scraping d'une liste d'urls passée en variable
+
+```{r}
+#| class.output: output
+scraper_qts <- function (element_citation) {
+  
+  selection_extraction <- function(css){
+    element <- element_citation$findChildElements('css selector', css)
+    texte_element <- unlist(lapply(element, function(x){x$getElementText()}))
+    return(texte_element)
+  }
+  
+  css <- c('.author', '.text', '.tags .tag')
+  elements_extraits <- lapply(css, selection_extraction)
+  return(elements_extraits)
+}
+
+scrape <- function(url){
+  remDr$navigate(url)
+  elements_citations <- remDr$findElements("css", ".quote")
+  result <- lapply(elements_citations, scraper_qts)
+  return(result)
+}
+urls <- c("http://quotes.toscrape.com/", 
+          "http://quotes.toscrape.com/page/2/",
+          "http://quotes.toscrape.com/page/3/")
+
+result <- sapply(urls, scrape)
+
+# Affichage du résultat
+for (citation in result)
+  print(paste(citation[1], citation[2], citation[3], sep = ", "))
+```
+
+## La pagination
+
+```{r, eval=FALSE}
+library(RSelenium)
+library(tidyverse)
+```
+
+
+Il existe deux manière sur RSelenium pour suivre une page, soit en récupérant l'URL d'un élément HTML, comme pour les autres outils, soit en cliquant sur l'élément.
+
+Pour rappel:
+
+- on ouvre une page de navigateur de la manière suivante:
+
+```{r, eval=FALSE}
+remDr0 <- rsDriver(browser = "firefox", port=4890L)
+remDr <- remDr0$client
+```
+
+
+- notre fonction de scraping d'une page était la suivante:
+
+```{r, eval=FALSE}
+Scrapeur <- function(frame){
+  
+  # Fonction d'extraction à partir des css
+  Extracteur_Text_CSS <- function(css){
+  art <- frame$findChildElements('css selector', css)
+  r <- unlist(lapply(art, function(x){x$getElementText()}))
+  return(r)
+  }
+  
+  # Application de la fonction sur l'ensemble de nos CSS
+  css <- c('.text', '.author', '.tags .tag')
+  res <- lapply(css, Extracteur_Text_CSS)
+  return(res)
+}
+
+res_scrap <- lapply(frames, Scrapeur)
+```
+
+### Récupération d'une url
+
+Pour récupérer une url avec RSelenium, il suffit de récupérer l'élément souhaité à partir du sélecteur CSS et d'en extraire l'url. L'élément 'Next' qu'on souhaite récupérer est identifié avec le CSS '.next a'.
+
+```{r, eval=FALSE}
+# On va sur notre URL
+url <- "http://quotes.toscrape.com/"
+remDr$navigate(url)
+
+# On récupère l'élement au selecteur '.next a'
+frames <- remDr$findElements("css", ".next a")
+# On en extrait l'url
+url <- unlist(lapply(frames,function(x){x$getElementAttribute("href")}))
+url
+
+# On peut ensuite demander à notre navigateur de s'y rendre
+remDr$navigate(url)
+```
+
+On peut enregistrer cette opération dans une fonction de crawling, dans un crawler:
+
+```{r, eval=FALSE}
+crawleur <- function(){
+  frames <- remDr$findElements("css", ".next a")
+  if(length(frames) < 1){
+    return(F)
+  }else{
+    url <- unlist(lapply(frames, function(x){x$getElementAttribute("href")}))
+    remDr$navigate(url)
+    return(T)
+  }
+}
+crawleur()
+```
+
+On peut aussi complexifier un peut notre fonction pour qu'elle nous retourne TRUE si il y a une page suivante, et FALSE, si il n'y a pas de page suivante, et qu'elle s'arrête donc
+
+Enfin, on peut insérer ce crawler dans notre scrapeur et créer une boucle qui va se lancer n fois cette fonction:
+
+```{r, eval=FALSE}
+Scraping_qts <- function(){
+  frames <- remDr$findElements("css", ".quote")
+  res_scrap <- lapply(frames, Scrapeur)
+  crawleur()
+  return(res_scrap)
+}
+
+result <- list()
+url <- "http://quotes.toscrape.com/"
+remDr$navigate(url)
+
+for(i in 1:10){
+  resp <- Scraping_qts()
+  result <- append(result, resp)
+}
+
+
+```
+
+
+On peut aussi faire en sorte que la boucle ne fonctionne que tant qu'il est possible de crawler.
+
+```{r, eval=FALSE}
+Scraping_qts <- function(){
+  frames <- remDr$findElements("css", ".quote")
+  res_scrap <- lapply(frames, Scrapeur)
+  rep <- crawleur()
+  list(rep, res_scrap)
+  return(list(rep, res_scrap))
+}
+
+result <- list()
+url <- "http://quotes.toscrape.com/"
+remDr$navigate(url)
+i <- T
+
+while(i){
+  resp <- Scraping_qts()
+  i <- resp[[1]]
+  result <- append(result, resp[[2]])
+}
+
+```
+
+On finit donc avec une liste contenant l'ensemble des citation du site QuoteToScrape.
+
+### Cliquer avec RSelenium
+
+La deuxième méthode consiste à ce que RSelenium clique sur l'élément permettant d'accéder à la page suivante plutot que de récupérer l'url et de demander au navigateur de s'y rendre.
+
+Pour cela il faut récupérer l'élément et demander à RSelenium de cliquer:
+
+```{r, eval=FALSE}
+# On va sur notre URL
+url <- "http://quotes.toscrape.com/"
+remDr$navigate(url)
+
+# On récupère l'élement au selecteur '.next a'
+frames <- remDr$findElements("css", ".next a")
+# On demande au navigateur de cliquer sur l'élément
+# L'élément frames étant une liste, même si il n'y a qu'un élément, il faut indiquer sur quel élément cliquer (on ne peut pas cliquer sur plusieurs éléments en même temps)
+frames[[1]]$clickElement()
+```
+
+De la même manière on peut enregistrer cette méthode dans une fonction de crawling qui retournera TRUE si il y a une page suivante et FALSE si il n'y a plus de page.
+
+```{r, eval=FALSE}
+crawleur <- function(){
+  frames <- remDr$findElements("css", ".next a")
+  if(length(frames) < 1){
+    return(F)
+  }else{
+    frames[[1]]$clickElement()
+    return(T)
+  }
+}
+crawleur()
+```
+
+On peut aussi ajouter cette fonction au scrapeur et on réaliser la même opération que précédement.
+
+```{r, eval=FALSE}
+Scraping_qts <- function(){
+  frames <- remDr$findElements("css", ".quote")
+  res_scrap <- lapply(frames, Scrapeur)
+  rep <- crawleur()
+  list(rep, res_scrap)
+  return(list(rep, res_scrap))
+}
+
+result <- list()
+url <- "http://quotes.toscrape.com/"
+remDr$navigate(url)
+i <- T
+
+while(i){
+  resp <- Scraping_qts()
+  i <- resp[[1]]
+  result <- append(result, resp[[2]])
+}
+```
+
+Ainsi dans les deux cas on obtient une liste de l'ensemble des citations.
+
+## Scraping des auteurs
+
+On va voir maintenant comment récupérer les liens d'une page, ici des auteurs, et ensuite récupérer les éléments avec RSelenium.
+
+Il y a au moins trois manière de s'y prendre:
+
+D'abord on peut créer une fonction qui va aller cliquer sur les urls d'un de chaque page, récupérer les informations souhaitées, revenir cliquer sur l'auteur suivant, réaliser l'opération sur toutes jusqu'à aller à la dernière page. Le problème ici c'est qu'on va réaliser des retour en arrière régulier et donc à la fois chronophage, et qui va faire appel aux serveurs du site plus que nécessaire.
+
+Une deuxième manière serait de récupérer les liens des pages des auteurs sur chaque page, les scraper, puis aller à la page suivante. Le problème ici, spécifique au site QuoteToScrape, est que plusieurs citations on le même auteur, on risque donc en faisant cela de scraper inutilement plusieurs fois la page d'un même auteur.
+
+La dernière solution, et la moins chronophage, est de récupérer sur chaque page l'ensemble des liens des pages des auteurs, garder les éléments uniques et ne scraper que celles-ci.
+
+```{r}
+library(RSelenium)
+library(tidyverse)
+```
+
+Pour rappel:
+
+- on ouvre une page de navigateur de la manière suivante:
+
+```{r, eval=FALSE}
+remDr0 <- rsDriver(browser = "firefox", port=4890L)
+remDr <- remDr0$client
+```
+
+- notre crawleur de page est la fonction suivante:
+
+```{r, eval=FALSE}
+crawleur <- function(){
+  frames <- remDr$findElements("css", ".next a")
+  if(length(frames) < 1){
+    return(F)
+  }else{
+    frames[[1]]$clickElement()
+    return(T)
+  }
+}
+```
+
+#### Récupération et nettoyage des liens des pages des auteurs
+
+Notre première fonction va venir récupérer les urls des pages des auteurs sur la page où se trouve notre remDr.
+
+```{r, eval=FALSE}
+Scrapeur_URLs_Auteurs <- function(){
+  frames <- remDr$findElements("css", ".quote span a")
+  urls_p <- unlist(lapply(frames,function(x){x$getElementAttribute("href")}))
+  return(urls_p)
+}
+```
+
+On insère ce scrapeur dans notre récupération de page.
+
+```{r, eval=FALSE}
+Scraping_ULRs_Auteurs <- function(){
+  res_scrap <- Scrapeur_URLs_Auteurs()
+  rep <- crawleur()
+  list(rep, res_scrap)
+  return(list(rep, res_scrap))
+}
+
+urls_auteurs <- list()
+url <- "http://quotes.toscrape.com/"
+remDr$navigate(url)
+i <- T
+
+while(i){
+  resp <- Scraping_ULRs_Auteurs()
+  i <- resp[[1]]
+  urls_auteurs <- append(urls_auteurs, resp[[2]])
+}
+
+head(urls_auteurs)
+```
+
+Maintenant on effectue le nettoyage pour ne garder que des liens uniques:
+
+```{r, eval=FALSE}
+urls_auteurs_uniques <- unlist(urls_auteurs)
+# On retire ceux qui sont en doubles
+urls_auteurs_uniques <- urls_auteurs_uniques[-which(duplicated(urls_auteurs_uniques))]
+```
+
+
+#### Scraper des auteurs
+
+On va d'abord écrire la fonction de scraping de la page d'un auteur à partir de son url:
+
+```{r, eval=FALSE}
+# Fonction d'extraction à partir des css
+Extracteur_Text_CSS <- function(css){
+  frames <- remDr$findElements('css selector', css)
+  r <- unlist(lapply(frames,function(x){x$getElementText()}))
+  return(r)
+}
+
+Scrapeur_Auteur <- function(url){
+  remDr$navigate(url)
+  # Application de la fonction sur l'ensemble de nos CSS
+  css <- c('.author-title', 
+           '.author-born-date', 
+           '.author-born-location',
+           '.author-description')
+  res <- sapply(css, Extracteur_Text_CSS)
+  return(res)
+}
+
+# On test la fonction sur une page d'un auteur
+url <- urls_auteurs_uniques[1]
+Scrapeur_Auteur(url)
+```
+
+On applique ensuite la fonction sur l'ensemble des liens qu'on a récupéré:
+
+```{r, eval=FALSE}
+result <- lapply(urls_auteurs_uniques, Scrapeur_Auteur)
+head(result)
+```
+
