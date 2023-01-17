@@ -1,0 +1,60 @@
+project:
+  type: book
+  output-dir: _book
+
+book:
+  title: "Manuel de scraping"
+  reader-mode: true
+  cover-image: scraping.jpg
+  
+  author: "Bénédicte Garnier, Léo Henry, Frédéric Vergnaud"
+  date: "2022/11/29"
+  chapters:
+  - index.qmd
+  - part: "Introduction"
+    chapters: 
+      - Ch01_Introduction/Ch01_EnjeuxJuridiquesEtEthiques.qmd
+      - Ch01_Introduction/Ch01_EnvironnementStructurePageWeb.qmd
+      - Ch01_Introduction/Ch01_NotionsNiveauProfondeur.qmd
+      - Ch01_Introduction/Ch01_IdentifierInformationAExtraire.qmd
+      
+  - part: "Mise en oeuvre du scraping"  
+    chapters:
+      - Ch02_LaMiseEnOeuvreDuScraping/Ch02_Introduction.qmd
+      - Ch02_LaMiseEnOeuvreDuScraping/Ch02_Extractify.qmd
+      - Ch02_LaMiseEnOeuvreDuScraping/Ch02_RVest.qmd
+      - Ch02_LaMiseEnOeuvreDuScraping/Ch02_Scrapy.qmd
+      - Ch02_LaMiseEnOeuvreDuScraping/Ch02_RSelenium.qmd
+  - part: "Mise en application du scraping"  
+    chapters: 
+      - Ch03_LaMiseEnApplicationDuScraping/Ch03_Introduction.qmd
+      - Ch03_LaMiseEnApplicationDuScraping/Ch03_Extractify.qmd
+      - Ch03_LaMiseEnApplicationDuScraping/Ch03_RVest.qmd
+      - Ch03_LaMiseEnApplicationDuScraping/Ch03_Scrapy.qmd
+  - part: "Nettoyage et préparation des données"
+  - part: "Un exemple d'exploration des données scrapées"
+    chapters:
+      - Ch05_ExplorationDonneesScrapees/Ch05_ExplorationDonneesScrapees.qmd
+      
+bibliography: references.bib
+
+format:
+  html:
+    theme:
+      - cosmo
+    code-link: true
+
+    author-meta: "Bénédicte Garnier, Léo Henry, Frédéric Vergnaud"
+    callout-appearance: simple
+    
+    toc: true
+    toc-depth: 3
+    highlight-style: github
+    code-block-bg: true
+    code-block-border-left: violet
+    css: custom_style.css
+
+editor: visual
+
+execute: 
+  freeze: auto
