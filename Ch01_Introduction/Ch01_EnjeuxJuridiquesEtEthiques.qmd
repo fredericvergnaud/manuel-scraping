@@ -1,5 +1,7 @@
 # Les enjeux juridiques et éthiques du scraping {#sec-introduction-enjeux-juridiques-ethiques .unnumbered}
 
+MODIFIE 2
+
 Scraping : méthode facile à mettre en place + facilité d'accès / gratuité d'accès aux données web + automatisation du processus (robotisation) peut donner l'impression d'une méthode « magique, miraculeuse », qu'on ne contrôle pas trop, autonome, sentiment de puissance et d'impunité (voir éthique du scraping) ...
 
 Importance du terme « scraping à des fins de recherche » est bien sûr important ici : on se focalise sur le scraping de données dans une finalité de recherche, ce qui a des conséquences sur la réutilisation de ces données (voir infra).
